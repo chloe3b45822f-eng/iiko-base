@@ -61,7 +61,21 @@ mkdir -p storage/framework/{sessions,views,cache}
 mkdir -p storage/logs
 mkdir -p bootstrap/cache
 
+# Создание .env файла, если он не существует
+if [ ! -f .env ]; then
+    print_info "Создание файла .env из .env.example..."
+    cp .env.example .env
+    print_warning "Не забудьте настроить параметры в .env (DB, URL и др.)"
+fi
+
 composer install --no-dev --optimize-autoloader
+
+# Генерация ключа приложения, если он не задан
+if ! grep -q "APP_KEY=base64:" .env; then
+    print_info "Генерация ключа приложения..."
+    php artisan key:generate
+fi
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
