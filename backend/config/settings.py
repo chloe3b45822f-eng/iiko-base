@@ -1,0 +1,31 @@
+"""
+Настройки приложения
+"""
+from pydantic_settings import BaseSettings
+from typing import List
+
+
+class Settings(BaseSettings):
+    # Database
+    DATABASE_URL: str = "postgresql://iiko_user:password@localhost:5432/iiko_db"
+    
+    # Application
+    APP_NAME: str = "iiko-base"
+    APP_ENV: str = "production"
+    DEBUG: bool = False
+    SECRET_KEY: str = "change-this-secret-key"
+    
+    # API
+    API_V1_PREFIX: str = "/api/v1"
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    
+    # Server
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+settings = Settings()
