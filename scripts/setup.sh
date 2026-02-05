@@ -36,7 +36,7 @@ print_warning() {
 run_psql_with_timeout() {
     local timeout_seconds=$1
     shift
-    timeout "$timeout_seconds" bash -c "PGCONNECT_TIMEOUT=$PGCONNECT_TIMEOUT PGPASSWORD=\"$DB_PASSWORD\" psql $*"
+    timeout "$timeout_seconds" bash -c "PGCONNECT_TIMEOUT=$PGCONNECT_TIMEOUT PGPASSWORD=\"$DB_PASSWORD\" psql \"\$@\"" -- "$@"
 }
 
 # Определение директории проекта
@@ -176,7 +176,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 
             # Проверяем подключение к PostgreSQL (ОБЯЗАТЕЛЬНО с флагом -h для password auth)
             # Сохраняем вывод ошибок для диагностики
-            CONNECTION_ERROR=$(run_psql_with_timeout $PSQL_TIMEOUT -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c '\q' 2>&1)
+            CONNECTION_ERROR=$(run_psql_with_timeout "$PSQL_TIMEOUT" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c '\q' 2>&1)
             CONNECTION_STATUS=$?
 
             # Проверяем успешность подключения
@@ -190,12 +190,12 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
                 print_info "✓ Подключение к PostgreSQL успешно"
                 
                 # Проверяем существование базы данных (используем безопасное сравнение)
-                DB_EXISTS=$(run_psql_with_timeout $PSQL_TIMEOUT -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname=\$\$${DB_NAME}\$\$" 2>/dev/null)
+                DB_EXISTS=$(run_psql_with_timeout "$PSQL_TIMEOUT" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname=\$\$${DB_NAME}\$\$" 2>/dev/null)
                 
                 if [ "$DB_EXISTS" != "1" ]; then
                     print_info "База данных $DB_NAME не существует, создание..."
                     # Используем идентификаторы вместо прямой интерполяции для безопасности
-                    if run_psql_with_timeout $PSQL_TIMEOUT -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null; then
+                    if run_psql_with_timeout "$PSQL_TIMEOUT" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null; then
                         print_info "✓ База данных $DB_NAME создана"
                     else
                         print_error "Не удалось создать базу данных $DB_NAME"
@@ -210,7 +210,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
                 
                 print_info "Инициализация таблиц..."
                 if [ -f "database/schema.sql" ]; then
-                    if run_psql_with_timeout $PSQL_SCHEMA_TIMEOUT -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql 2>/dev/null; then
+                    if run_psql_with_timeout "$PSQL_SCHEMA_TIMEOUT" -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql 2>/dev/null; then
                         print_info "✓ Таблицы успешно созданы"
                     else
                         print_warning "Не удалось выполнить инициализацию БД (возможно, таблицы уже существуют)"
