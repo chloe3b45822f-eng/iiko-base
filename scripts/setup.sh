@@ -119,123 +119,131 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_warning "PostgreSQL не запущен"
         if [ "$EUID" -eq 0 ]; then
             print_info "Попытка запуска PostgreSQL..."
-            systemctl start postgresql || print_error "Не удалось запустить PostgreSQL"
+            if ! systemctl start postgresql 2>/dev/null; then
+                print_error "Не удалось запустить PostgreSQL"
+                print_warning "Пропуск инициализации БД"
+                print_info "Запустите PostgreSQL вручную: sudo systemctl start postgresql"
+            fi
         else
             print_error "PostgreSQL не запущен. Запустите его командой: sudo systemctl start postgresql"
             print_warning "Пропуск инициализации БД"
-            exit 0
         fi
     else
         print_info "PostgreSQL запущен"
     fi
     
-    # Чтение параметров подключения
-    read -p "Введите имя пользователя PostgreSQL [iiko_user]: " DB_USER
-    DB_USER=${DB_USER:-iiko_user}
-    
-    read -sp "Введите пароль PostgreSQL: " DB_PASSWORD
-    echo
-    
-    read -p "Введите имя базы данных [iiko_db]: " DB_NAME
-    DB_NAME=${DB_NAME:-iiko_db}
-    
-    read -p "Введите хост PostgreSQL [localhost]: " DB_HOST
-    DB_HOST=${DB_HOST:-localhost}
-    
-    read -p "Введите порт PostgreSQL [5432]: " DB_PORT
-    DB_PORT=${DB_PORT:-5432}
-    
-    print_info "Проверка подключения к базе данных..."
-    
-    # Проверяем, установлен ли клиент psql
-    if ! command -v psql &> /dev/null; then
-        print_error "Клиент PostgreSQL (psql) не установлен"
-        print_info "Установите его командой: sudo apt-get install postgresql-client"
-        print_warning "Пропуск инициализации БД"
-        exit 0
-    fi
-    
-    # Проверяем подключение к PostgreSQL (ОБЯЗАТЕЛЬНО с флагом -h для password auth)
-    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c '\q' 2>/dev/null; then
-        print_info "✓ Подключение к PostgreSQL успешно"
-        
-        # Проверяем существование базы данных (используем безопасное сравнение)
-        DB_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname=\$\$${DB_NAME}\$\$" 2>/dev/null)
-        
-        if [ "$DB_EXISTS" != "1" ]; then
-            print_info "База данных $DB_NAME не существует, создание..."
-            # Используем идентификаторы вместо прямой интерполяции для безопасности
-            if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null; then
-                print_info "✓ База данных $DB_NAME создана"
-            else
-                print_error "Не удалось создать базу данных $DB_NAME"
-                print_info "Возможные причины:"
-                print_info "  - У пользователя $DB_USER нет прав на создание БД"
-                print_info "  - База данных уже существует"
-                print_warning "Попробуйте создать БД вручную: sudo -u postgres createdb -O $DB_USER $DB_NAME"
-            fi
-        else
-            print_info "✓ База данных $DB_NAME уже существует"
-        fi
-        
-        print_info "Инициализация таблиц..."
-        if [ -f "database/schema.sql" ]; then
-            if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql 2>/dev/null; then
-                print_info "✓ Таблицы успешно созданы"
-            else
-                print_warning "Не удалось выполнить инициализацию БД (возможно, таблицы уже существуют)"
-            fi
-        else
-            print_warning "Файл database/schema.sql не найден"
-        fi
-        
-        print_info "✓ База данных настроена успешно!"
+    # Проверяем, запущен ли PostgreSQL после попытки запуска
+    if ! systemctl is-active --quiet postgresql 2>/dev/null; then
+        # PostgreSQL не запущен, пропускаем инициализацию
+        print_info "Продолжаем настройку окружения без инициализации БД"
     else
-        print_error "Не удалось подключиться к PostgreSQL"
-        echo ""
-        print_info "═══════════════════════════════════════════════════════════"
-        print_info "ДИАГНОСТИКА ПРОБЛЕМЫ:"
-        print_info "═══════════════════════════════════════════════════════════"
-        
-        # Проверка 1: PostgreSQL запущен?
-        if systemctl is-active --quiet postgresql 2>/dev/null; then
-            print_info "✓ PostgreSQL запущен"
+        # Проверяем, установлен ли клиент psql
+        if ! command -v psql &> /dev/null; then
+            print_error "Клиент PostgreSQL (psql) не установлен"
+            print_info "Установите его командой: sudo apt-get install postgresql-client"
+            print_warning "Пропуск инициализации БД"
         else
-            print_error "✗ PostgreSQL не запущен"
-            print_info "  Решение: sudo systemctl start postgresql"
+            # Чтение параметров подключения
+            read -p "Введите имя пользователя PostgreSQL [iiko_user]: " DB_USER
+            DB_USER=${DB_USER:-iiko_user}
+            
+            read -sp "Введите пароль PostgreSQL: " DB_PASSWORD
+            echo
+            
+            read -p "Введите имя базы данных [iiko_db]: " DB_NAME
+            DB_NAME=${DB_NAME:-iiko_db}
+            
+            read -p "Введите хост PostgreSQL [localhost]: " DB_HOST
+            DB_HOST=${DB_HOST:-localhost}
+            
+            read -p "Введите порт PostgreSQL [5432]: " DB_PORT
+            DB_PORT=${DB_PORT:-5432}
+            
+            print_info "Проверка подключения к базе данных..."
+            
+            # Проверяем подключение к PostgreSQL (ОБЯЗАТЕЛЬНО с флагом -h для password auth)
+            if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c '\q' 2>/dev/null; then
+                print_info "✓ Подключение к PostgreSQL успешно"
+                
+                # Проверяем существование базы данных (используем безопасное сравнение)
+                DB_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname=\$\$${DB_NAME}\$\$" 2>/dev/null)
+                
+                if [ "$DB_EXISTS" != "1" ]; then
+                    print_info "База данных $DB_NAME не существует, создание..."
+                    # Используем идентификаторы вместо прямой интерполяции для безопасности
+                    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" 2>/dev/null; then
+                        print_info "✓ База данных $DB_NAME создана"
+                    else
+                        print_error "Не удалось создать базу данных $DB_NAME"
+                        print_info "Возможные причины:"
+                        print_info "  - У пользователя $DB_USER нет прав на создание БД"
+                        print_info "  - База данных уже существует"
+                        print_warning "Попробуйте создать БД вручную: sudo -u postgres createdb -O $DB_USER $DB_NAME"
+                    fi
+                else
+                    print_info "✓ База данных $DB_NAME уже существует"
+                fi
+                
+                print_info "Инициализация таблиц..."
+                if [ -f "database/schema.sql" ]; then
+                    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/schema.sql 2>/dev/null; then
+                        print_info "✓ Таблицы успешно созданы"
+                    else
+                        print_warning "Не удалось выполнить инициализацию БД (возможно, таблицы уже существуют)"
+                    fi
+                else
+                    print_warning "Файл database/schema.sql не найден"
+                fi
+                
+                print_info "✓ База данных настроена успешно!"
+            else
+                print_error "Не удалось подключиться к PostgreSQL"
+                echo ""
+                print_info "═══════════════════════════════════════════════════════════"
+                print_info "ДИАГНОСТИКА ПРОБЛЕМЫ:"
+                print_info "═══════════════════════════════════════════════════════════"
+                
+                # Проверка 1: PostgreSQL запущен?
+                if systemctl is-active --quiet postgresql 2>/dev/null; then
+                    print_info "✓ PostgreSQL запущен"
+                else
+                    print_error "✗ PostgreSQL не запущен"
+                    print_info "  Решение: sudo systemctl start postgresql"
+                fi
+                
+                # Проверка 2: Пользователь существует?
+                print_info ""
+                print_info "Проверьте, существует ли пользователь $DB_USER:"
+                print_info "  sudo -u postgres psql -c \"\\du $DB_USER\""
+                print_info ""
+                print_info "Если пользователь не существует, создайте его:"
+                print_info "  sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD 'ваш_пароль';\""
+                print_info "  sudo -u postgres psql -c \"ALTER USER $DB_USER CREATEDB;\""
+                
+                # Проверка 3: Аутентификация
+                print_info ""
+                print_info "Проверьте настройки аутентификации в pg_hba.conf:"
+                print_info "  sudo nano /etc/postgresql/*/main/pg_hba.conf"
+                print_info ""
+                print_info "Убедитесь, что есть строка (добавьте перед строкой 'local all all peer'):"
+                print_info "  host    all             all             127.0.0.1/32            md5"
+                print_info "  host    all             all             ::1/128                 md5"
+                print_info ""
+                print_info "После изменений перезапустите PostgreSQL:"
+                print_info "  sudo systemctl restart postgresql"
+                
+                # Проверка 4: Тест подключения
+                print_info ""
+                print_info "Проверьте подключение вручную:"
+                print_info "  psql -h localhost -U $DB_USER -d postgres"
+                print_info "  (введите пароль: $DB_PASSWORD)"
+                
+                print_info "═══════════════════════════════════════════════════════════"
+                print_info ""
+                print_info "Подробную информацию смотрите в docs/DATABASE_ERRORS.md"
+                print_warning "Пропуск инициализации БД"
+            fi
         fi
-        
-        # Проверка 2: Пользователь существует?
-        print_info ""
-        print_info "Проверьте, существует ли пользователь $DB_USER:"
-        print_info "  sudo -u postgres psql -c \"\\du $DB_USER\""
-        print_info ""
-        print_info "Если пользователь не существует, создайте его:"
-        print_info "  sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD 'ваш_пароль';\""
-        print_info "  sudo -u postgres psql -c \"ALTER USER $DB_USER CREATEDB;\""
-        
-        # Проверка 3: Аутентификация
-        print_info ""
-        print_info "Проверьте настройки аутентификации в pg_hba.conf:"
-        print_info "  sudo nano /etc/postgresql/*/main/pg_hba.conf"
-        print_info ""
-        print_info "Убедитесь, что есть строка (добавьте перед строкой 'local all all peer'):"
-        print_info "  host    all             all             127.0.0.1/32            md5"
-        print_info "  host    all             all             ::1/128                 md5"
-        print_info ""
-        print_info "После изменений перезапустите PostgreSQL:"
-        print_info "  sudo systemctl restart postgresql"
-        
-        # Проверка 4: Тест подключения
-        print_info ""
-        print_info "Проверьте подключение вручную:"
-        print_info "  psql -h localhost -U $DB_USER -d postgres"
-        print_info "  (введите пароль: $DB_PASSWORD)"
-        
-        print_info "═══════════════════════════════════════════════════════════"
-        print_info ""
-        print_info "Подробную информацию смотрите в docs/DATABASE_ERRORS.md"
-        print_warning "Пропуск инициализации БД"
     fi
 fi
 
