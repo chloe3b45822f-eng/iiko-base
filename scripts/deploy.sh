@@ -54,6 +54,13 @@ cd ..
 # Установка/обновление зависимостей Laravel
 print_info "Обновление зависимостей Laravel..."
 cd frontend
+
+# Убедимся, что необходимые директории Laravel существуют
+mkdir -p resources/views
+mkdir -p storage/framework/{sessions,views,cache}
+mkdir -p storage/logs
+mkdir -p bootstrap/cache
+
 composer install --no-dev --optimize-autoloader
 php artisan config:cache
 php artisan route:cache
