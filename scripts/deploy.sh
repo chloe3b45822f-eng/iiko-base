@@ -54,7 +54,25 @@ cd ..
 # Установка/обновление зависимостей Laravel
 print_info "Обновление зависимостей Laravel..."
 cd frontend
+
+# Убедимся, что необходимые директории Laravel существуют
+mkdir -p resources/views storage/framework/{sessions,views,cache} storage/logs bootstrap/cache
+
+# Создание .env файла, если он не существует
+if [ ! -f .env ]; then
+    print_info "Создание файла .env из .env.example..."
+    cp .env.example .env
+    print_warning "Не забудьте настроить параметры в .env (DB, URL и др.)"
+fi
+
 composer install --no-dev --optimize-autoloader
+
+# Генерация ключа приложения, если он не задан
+if ! grep -qE "^APP_KEY=.+" .env || grep -qE "^APP_KEY=$" .env; then
+    print_info "Генерация ключа приложения..."
+    php artisan key:generate --force
+fi
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
