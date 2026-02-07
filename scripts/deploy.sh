@@ -14,6 +14,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Константы для таймаутов
+DB_CHECK_TIMEOUT=10  # Таймаут для проверки подключения к БД (секунды)
+
 print_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
 }
@@ -82,8 +85,9 @@ cd ..
 print_info "Проверка подключения к базе данных..."
 cd frontend
 
-# Проверка подключения к БД перед миграциями
-if php artisan db:show 2>/dev/null >/dev/null; then
+# Проверка подключения к БД перед миграциями с таймаутом
+# Используем timeout для предотвращения зависания
+if timeout "$DB_CHECK_TIMEOUT" php artisan db:show 2>/dev/null >/dev/null; then
     print_info "✓ Подключение к БД успешно"
     print_info "Применение миграций..."
     php artisan migrate --force || print_warning "Миграции не выполнены"
