@@ -82,8 +82,9 @@ cd ..
 print_info "Проверка подключения к базе данных..."
 cd frontend
 
-# Проверка подключения к БД перед миграциями
-if php artisan db:show 2>/dev/null >/dev/null; then
+# Проверка подключения к БД перед миграциями с таймаутом
+# Используем timeout для предотвращения зависания
+if timeout 10 php artisan db:show 2>/dev/null >/dev/null; then
     print_info "✓ Подключение к БД успешно"
     print_info "Применение миграций..."
     php artisan migrate --force || print_warning "Миграции не выполнены"
