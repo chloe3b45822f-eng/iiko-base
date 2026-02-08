@@ -174,7 +174,7 @@ BACKEND_API_URL=https://api.vezuroll.ru/api/v1
 
 ```bash
 systemctl status iiko-backend
-systemctl status php8.1-fpm  # или php-fpm
+systemctl status php8.3-fpm  # или php-fpm
 systemctl status nginx
 systemctl status postgresql
 ```
@@ -187,11 +187,11 @@ systemctl status postgresql
 
 ```bash
 # Проверьте статус PHP-FPM
-sudo systemctl status php8.1-fpm
+sudo systemctl status php8.3-fpm
 
 # Если PHP-FPM не запущен, запустите его
-sudo systemctl start php8.1-fpm
-sudo systemctl enable php8.1-fpm
+sudo systemctl start php8.3-fpm
+sudo systemctl enable php8.3-fpm
 
 # Перезапустите Nginx
 sudo systemctl restart nginx
