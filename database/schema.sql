@@ -54,13 +54,14 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Вставка примерных данных (опционально)
--- INSERT INTO users (email, username, hashed_password, is_superuser) 
--- VALUES ('admin@example.com', 'admin', 'hashed_password_here', TRUE);
-
 -- RBAC: Добавление поля role к таблице users
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'viewer';
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- Вставка админа по умолчанию (только если не существует)
+INSERT INTO users (email, username, hashed_password, role, is_active, is_superuser) 
+VALUES ('admin@example.com', 'admin', '$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa', 'admin', TRUE, TRUE)
+ON CONFLICT (username) DO NOTHING;
 
 -- Таблица настроек интеграции iiko
 CREATE TABLE IF NOT EXISTS iiko_settings (
