@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
+
+    # Default admin (bootstrap account)
+    DEFAULT_ADMIN_USERNAME: str = "admin"
+    DEFAULT_ADMIN_PASSWORD: str = "12101991Qq!"
+    DEFAULT_ADMIN_EMAIL: str = "admin@example.com"
     
     # Webhook
     WEBHOOK_BASE_URL: str = ""
