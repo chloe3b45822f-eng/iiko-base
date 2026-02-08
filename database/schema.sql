@@ -58,15 +58,10 @@ CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'viewer';
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
--- Вставка админа по умолчанию (пароль: 12101991Qq!)
+-- Вставка админа по умолчанию (только если не существует)
 INSERT INTO users (email, username, hashed_password, role, is_active, is_superuser) 
 VALUES ('admin@example.com', 'admin', '$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa', 'admin', TRUE, TRUE)
-ON CONFLICT (username) DO UPDATE
-SET hashed_password = EXCLUDED.hashed_password,
-    email = EXCLUDED.email,
-    role = EXCLUDED.role,
-    is_active = EXCLUDED.is_active,
-    is_superuser = EXCLUDED.is_superuser;
+ON CONFLICT (username) DO NOTHING;
 
 -- Таблица настроек интеграции iiko
 CREATE TABLE IF NOT EXISTS iiko_settings (
