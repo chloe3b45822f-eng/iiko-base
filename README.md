@@ -72,6 +72,7 @@ sudo ./scripts/deploy.sh
 - **[Руководство для новичков](docs/BEGINNER_GUIDE.md)** - если вы только начинаете
 - **[Архитектура проекта](docs/ARCHITECTURE.md)** - как все устроено
 - **[Устранение ошибок БД](docs/DATABASE_ERRORS.md)** - решение проблем с PostgreSQL
+- **[Решение ошибки 502 Bad Gateway](docs/502_ERROR_FIX.md)** - если сайт не открывается
 - **[FAQ](docs/FAQ.md)** - часто задаваемые вопросы
 
 ## 🏗️ Структура проекта
@@ -173,9 +174,45 @@ BACKEND_API_URL=https://api.vezuroll.ru/api/v1
 
 ```bash
 systemctl status iiko-backend
+systemctl status php8.1-fpm  # или php-fpm
 systemctl status nginx
 systemctl status postgresql
 ```
+
+## 🐛 Устранение неисправностей
+
+### Ошибка 502 Bad Gateway
+
+Если при открытии сайта появляется ошибка "502 Bad Gateway":
+
+```bash
+# Проверьте статус PHP-FPM
+sudo systemctl status php8.1-fpm
+
+# Если PHP-FPM не запущен, запустите его
+sudo systemctl start php8.1-fpm
+sudo systemctl enable php8.1-fpm
+
+# Перезапустите Nginx
+sudo systemctl restart nginx
+```
+
+**Подробное руководство**: [docs/502_ERROR_FIX.md](docs/502_ERROR_FIX.md)
+
+### Ошибки подключения к БД
+
+Если возникают проблемы с подключением к PostgreSQL:
+
+```bash
+# Проверьте статус PostgreSQL
+sudo systemctl status postgresql
+
+# Проверьте существование пользователя БД
+sudo -u postgres psql -c "\du iiko_user"
+```
+
+**Подробное руководство**: [docs/DATABASE_ERRORS.md](docs/DATABASE_ERRORS.md)
+
 
 ### Просмотр логов
 
