@@ -184,7 +184,9 @@ systemctl restart nginx
 # Проверка статуса
 print_info "Проверка статуса сервисов..."
 systemctl status iiko-backend --no-pager || true
-systemctl status php8.1-fpm --no-pager || systemctl status php-fpm --no-pager || print_warning "PHP-FPM не запущен"
+if ! systemctl status php8.1-fpm --no-pager 2>/dev/null && ! systemctl status php-fpm --no-pager 2>/dev/null; then
+    print_warning "PHP-FPM не запущен"
+fi
 systemctl status nginx --no-pager || true
 
 print_info "Деплой завершен успешно!"
