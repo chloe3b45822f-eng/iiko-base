@@ -85,9 +85,26 @@ cd ..
 print_info "Проверка подключения к базе данных..."
 cd frontend
 
-# Проверка подключения к БД перед миграциями с таймаутом
-# Используем timeout для предотвращения зависания
-if timeout "$DB_CHECK_TIMEOUT" php artisan db:show 2>/dev/null >/dev/null; then
+# Загрузка настроек БД из .env
+if [ -f .env ]; then
+    DB_HOST=$(grep "^DB_HOST=" .env | cut -d'=' -f2 | tr -d ' ')
+    DB_PORT=$(grep "^DB_PORT=" .env | cut -d'=' -f2 | tr -d ' ')
+    DB_USER=$(grep "^DB_USERNAME=" .env | cut -d'=' -f2 | tr -d ' ')
+    DB_PASSWORD=$(grep "^DB_PASSWORD=" .env | cut -d'=' -f2 | tr -d ' ')
+    DB_NAME=$(grep "^DB_DATABASE=" .env | cut -d'=' -f2 | tr -d ' ')
+else
+    print_error "Файл .env не найден"
+    print_warning "Пропуск миграций"
+    cd ..
+    exit 0
+fi
+
+# Проверка подключения к БД перед миграциями
+# Используем прямое подключение к PostgreSQL без зависимостей Laravel
+export PGPASSWORD="$DB_PASSWORD"
+export PGCONNECT_TIMEOUT=5
+
+if timeout "$DB_CHECK_TIMEOUT" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
     print_info "✓ Подключение к БД успешно"
     print_info "Применение миграций..."
     php artisan migrate --force || print_warning "Миграции не выполнены"
@@ -101,15 +118,19 @@ else
     print_info "  sudo systemctl status postgresql"
     print_info ""
     print_info "Создайте пользователя БД, если он не существует:"
-    print_info "  sudo -u postgres psql -c \"CREATE USER \$(grep DB_USERNAME .env | cut -d'=' -f2) WITH PASSWORD '\$(grep DB_PASSWORD .env | cut -d'=' -f2)';\""
-    print_info "  sudo -u postgres psql -c \"ALTER USER \$(grep DB_USERNAME .env | cut -d'=' -f2) CREATEDB;\""
+    print_info "  sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\""
+    print_info "  sudo -u postgres psql -c \"ALTER USER $DB_USER CREATEDB;\""
     print_info ""
     print_info "Создайте базу данных, если она не существует:"
-    print_info "  sudo -u postgres createdb -O \$(grep DB_USERNAME .env | cut -d'=' -f2) \$(grep DB_DATABASE .env | cut -d'=' -f2)"
+    print_info "  sudo -u postgres createdb -O $DB_USER $DB_NAME"
     print_info ""
     print_info "Подробная информация в docs/DATABASE_ERRORS.md"
     print_warning "Пропуск миграций"
 fi
+
+# Очистка переменных окружения с паролем
+unset PGPASSWORD
+unset PGCONNECT_TIMEOUT
 
 cd ..
 
