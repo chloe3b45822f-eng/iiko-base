@@ -57,6 +57,26 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)):
 async def login(form: UserLogin, db: Session = Depends(get_db)):
     """Авторизация пользователя (получение JWT)"""
     user = db.query(User).filter(User.username == form.username).first()
+    default_password = str(settings.DEFAULT_ADMIN_PASSWORD)
+    if not user and form.username == settings.DEFAULT_ADMIN_USERNAME and secrets.compare_digest(
+        form.password, default_password
+    ):
+        existing_admin = db.query(User).filter(User.role == "admin").first()
+        if existing_admin:
+            raise HTTPException(status_code=401, detail="Неверные учетные данные")
+        # Автоматически создаем базового администратора, если он отсутствует
+        user = User(
+            email=settings.DEFAULT_ADMIN_EMAIL,
+            username=settings.DEFAULT_ADMIN_USERNAME,
+            hashed_password=get_password_hash(default_password),
+            role="admin",
+            is_active=True,
+            is_superuser=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Неверные учетные данные")
     if not user.is_active:

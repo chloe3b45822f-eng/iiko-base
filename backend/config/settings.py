@@ -1,11 +1,14 @@
 """
 Настройки приложения
 """
-from pydantic_settings import BaseSettings
 from typing import List
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+
     # Database
     DATABASE_URL: str = "postgresql://iiko_user:12101991Qq!@localhost:5432/iiko_db"
     
@@ -26,17 +29,18 @@ class Settings(BaseSettings):
     # JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
-    
+
+    # Default admin (bootstrap account)
+    DEFAULT_ADMIN_USERNAME: str = Field("admin")
+    DEFAULT_ADMIN_PASSWORD: str = Field("12101991Qq!", repr=False)
+    DEFAULT_ADMIN_EMAIL: str = Field("admin@example.com")
+
     # Webhook
     WEBHOOK_BASE_URL: str = ""
     
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()
