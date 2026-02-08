@@ -31,8 +31,7 @@ def main():
     print(f"   Database URL: {settings.DATABASE_URL[:60]}...")
     print(f"   Default admin username: {settings.DEFAULT_ADMIN_USERNAME}")
     print(f"   Default admin email: {settings.DEFAULT_ADMIN_EMAIL}")
-    password_masked = '*' * len(str(settings.DEFAULT_ADMIN_PASSWORD))
-    print(f"   Default admin password: {password_masked}")
+    print(f"   Default admin password: ********")
     
     # Connect to database
     print("\n2. Database Connection:")
@@ -106,9 +105,8 @@ def main():
     print(" VERIFICATION COMPLETE ".center(80))
     print("=" * 80)
     print("\n✅ ALL CHECKS PASSED!")
-    print("\nYou should be able to login with:")
-    print(f"   Username: {settings.DEFAULT_ADMIN_USERNAME}")
-    print(f"   Password: {default_password}")
+    print("\nYou should be able to login with the default admin credentials.")
+    print("Check the project documentation or settings for credential details.")
     print("\nIf login still fails, check:")
     print("   1. Backend is running: systemctl status iiko-backend")
     print("   2. Backend URL in frontend .env is correct")

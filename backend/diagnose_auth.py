@@ -23,7 +23,7 @@ def main():
     print("\n1. Settings Check:")
     print(f"   DEFAULT_ADMIN_USERNAME: {settings.DEFAULT_ADMIN_USERNAME}")
     print(f"   DEFAULT_ADMIN_EMAIL: {settings.DEFAULT_ADMIN_EMAIL}")
-    print(f"   DEFAULT_ADMIN_PASSWORD: {'*' * len(str(settings.DEFAULT_ADMIN_PASSWORD))}")
+    print(f"   DEFAULT_ADMIN_PASSWORD: ********")
     print(f"   DATABASE_URL: {settings.DATABASE_URL[:50]}...")
     
     # Connect to database
