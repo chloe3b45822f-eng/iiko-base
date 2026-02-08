@@ -54,9 +54,15 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Вставка примерных данных (опционально)
--- INSERT INTO users (email, username, hashed_password, is_superuser) 
--- VALUES ('admin@example.com', 'admin', 'hashed_password_here', TRUE);
+-- Вставка админа по умолчанию (пароль: 12101991Qq!)
+INSERT INTO users (email, username, hashed_password, role, is_active, is_superuser) 
+VALUES ('admin@example.com', 'admin', '$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa', 'admin', TRUE, TRUE)
+ON CONFLICT (username) DO UPDATE
+SET hashed_password = EXCLUDED.hashed_password,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role,
+    is_active = EXCLUDED.is_active,
+    is_superuser = EXCLUDED.is_superuser;
 
 -- RBAC: Добавление поля role к таблице users
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'viewer';
