@@ -591,7 +591,7 @@ sudo reboot
   psql -h localhost -U iiko_user -d iiko_db \
     -c "UPDATE users SET role='admin' WHERE username='<ADMIN_USERNAME>' AND email='<ADMIN_EMAIL>';"
   ```
-- После этого авторизуйтесь на `/login` под логином `admin` и выбранным вами паролем, и вы будете перенаправлены на `/admin`.
+- После этого авторизуйтесь на `/login` под логином `<ADMIN_USERNAME>` и выбранным вами паролем, и вы будете перенаправлены на `/admin`.
 
 ### Можно ли использовать для коммерческих проектов?
 
