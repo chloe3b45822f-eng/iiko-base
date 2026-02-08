@@ -112,7 +112,7 @@ if [ -f .env ]; then
         print_info "  sudo systemctl status postgresql"
         print_info ""
         print_info "Создайте пользователя БД, если он не существует:"
-        print_info "  sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';\""
+        print_info "  sudo -u postgres psql -c \"CREATE USER $DB_USER WITH PASSWORD 'ваш_пароль';\""
         print_info "  sudo -u postgres psql -c \"ALTER USER $DB_USER CREATEDB;\""
         print_info ""
         print_info "Создайте базу данных, если она не существует:"
