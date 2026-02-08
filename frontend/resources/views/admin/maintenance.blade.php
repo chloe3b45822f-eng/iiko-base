@@ -42,11 +42,11 @@
 @section('content')
 {{-- Tab Bar --}}
 <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('status')">📡 Статус</button>
-    <button class="tab-btn" onclick="switchTab('settings')">⚙️ Настройки API</button>
-    <button class="tab-btn" onclick="switchTab('webhooks')">🔗 Вебхуки</button>
-    <button class="tab-btn" onclick="switchTab('data')">📋 Данные iiko</button>
-    <button class="tab-btn" onclick="switchTab('logs')">📝 Логи</button>
+    <button class="tab-btn active" onclick="switchTab('status', event)">📡 Статус</button>
+    <button class="tab-btn" onclick="switchTab('settings', event)">⚙️ Настройки API</button>
+    <button class="tab-btn" onclick="switchTab('webhooks', event)">🔗 Вебхуки</button>
+    <button class="tab-btn" onclick="switchTab('data', event)">📋 Данные iiko</button>
+    <button class="tab-btn" onclick="switchTab('logs', event)">📝 Логи</button>
 </div>
 
 {{-- ═══ TAB: Server Status ═══ --}}
@@ -372,11 +372,11 @@ let currentSettingId = null;
 let settingsList = [];
 
 // ─── Tabs ────────────────────────────────────────────────
-function switchTab(name) {
+function switchTab(name, evt) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    event.target.classList.add('active');
+    if (evt && evt.target) evt.target.classList.add('active');
 
     if (name === 'status') loadStatus();
     if (name === 'settings') loadSettings();
