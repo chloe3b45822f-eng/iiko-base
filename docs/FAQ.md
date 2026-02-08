@@ -579,19 +579,19 @@ sudo reboot
 
 - Форма входа доступна по `/login` (или сразу `/admin` — неавторизованных автоматически отправляет на логин).
 - После успешного ввода логина и пароля происходит редирект на `/admin`, где открывается готовая панель с карточками и быстрыми действиями.
-- По умолчанию пользователь не создан: сначала зарегистрируйте его через API (используйте **уникальный сложный пароль**, замените `YourSecurePassword123!` на свой):
+- По умолчанию пользователь не создан: сначала зарегистрируйте его через API (используйте **уникальный сложный пароль**, замените `<YOUR_SECURE_PASSWORD>` на свой):
   ```bash
   # Создание пользователя с вашим паролем
   curl -X POST http://localhost:8000/api/v1/auth/register \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@example.com","username":"admin","password":"YourSecurePassword123!"}'
+    -d '{"email":"admin@example.com","username":"admin","password":"<YOUR_SECURE_PASSWORD>"}'
   ```
   Затем назначьте ему роль `admin` в базе данных:
   ```bash
   psql -h localhost -U iiko_user -d iiko_db \
     -c "UPDATE users SET role='admin' WHERE username='admin' AND email='admin@example.com';"
   ```
-- После этого авторизуйтесь на `/login` под логином `admin` и своим паролем `YourSecurePassword123!` и вы будете перенаправлены на `/admin`.
+- После этого авторизуйтесь на `/login` под логином `admin` и выбранным вами паролем, и вы будете перенаправлены на `/admin`.
 
 ### Можно ли использовать для коммерческих проектов?
 
