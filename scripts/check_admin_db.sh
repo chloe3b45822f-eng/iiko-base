@@ -1,19 +1,24 @@
 #!/bin/bash
 # Simple script to check admin user in database
 # This script connects directly to PostgreSQL and checks the admin user
+#
+# SECURITY NOTE: This script uses default credentials for diagnostic purposes.
+# These are the same default credentials documented throughout the project.
+# Users should change the default password immediately after first login.
 
 echo "========================================"
 echo "   Admin User Database Check"
 echo "========================================"
 echo ""
 
-# Database credentials
+# Database credentials (default values - should match your installation)
 DB_HOST="localhost"
 DB_USER="iiko_user"
 DB_NAME="iiko_db"
 DB_PASSWORD="12101991Qq!"
 
 # Expected hash for password 12101991Qq!
+# This is the documented default password that should be changed after first login
 EXPECTED_HASH='$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa'
 
 echo "1. Checking database connection..."

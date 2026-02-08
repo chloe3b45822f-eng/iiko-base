@@ -2,6 +2,10 @@
 """
 Test script to verify bcrypt password hashing and verification.
 This helps diagnose password authentication issues.
+
+SECURITY NOTE: This script uses default credentials for diagnostic purposes.
+These are the same default credentials documented throughout the project.
+Users should change the default password immediately after first login.
 """
 import sys
 
@@ -17,7 +21,8 @@ except ImportError:
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 print("✓ CryptContext initialized")
 
-# The password and expected hash
+# The documented default password and expected hash
+# These are public/known defaults that should be changed after first login
 password = "12101991Qq!"
 expected_hash = "$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa"
 

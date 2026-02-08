@@ -1,6 +1,10 @@
 """
 Test script to verify the login logic works correctly after the fix.
 This simulates different login scenarios without needing a running server.
+
+SECURITY NOTE: This script uses default credentials for testing purposes.
+These are the same default credentials documented throughout the project.
+Users should change the default password immediately after first login.
 """
 import sys
 import os
@@ -26,6 +30,7 @@ except ImportError as e:
 
 # Test 2: Verify password hashing and verification
 print("\n2. Testing password hashing...")
+# Documented default credentials (should be changed after first login)
 password = "12101991Qq!"
 expected_hash = "$2b$12$y4QVNPhuZfpLp1.xM6.NSeDnpD6I/wm.dSOXGrxV.HtXj6izHJLPa"
 
