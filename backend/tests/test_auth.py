@@ -174,3 +174,51 @@ def test_login_repairs_corrupted_admin_hash():
             db2.close()
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+def test_login_does_not_reset_changed_admin_password():
+    """Login must NOT reset the admin password when it was intentionally changed."""
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    app.dependency_overrides[get_db] = override_get_db
+
+    new_password = "NewSecurePassword123!"
+    db = TestingSessionLocal()
+    try:
+        db.add(
+            User(
+                email=settings.DEFAULT_ADMIN_EMAIL,
+                username=settings.DEFAULT_ADMIN_USERNAME,
+                hashed_password=get_password_hash(new_password),
+                role="admin",
+                is_active=True,
+                is_superuser=True,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    client = TestClient(app)
+    try:
+        # Attempt login with the OLD default password — should fail
+        response = client.post(
+            f"{settings.API_V1_PREFIX}/auth/login",
+            json={
+                "username": settings.DEFAULT_ADMIN_USERNAME,
+                "password": DEFAULT_PASSWORD,
+            },
+        )
+        assert response.status_code == 401
+
+        # Verify the password was NOT overwritten
+        db2 = TestingSessionLocal()
+        try:
+            user = db2.query(User).filter(User.username == settings.DEFAULT_ADMIN_USERNAME).first()
+            assert user is not None
+            assert verify_password(new_password, user.hashed_password)
+            assert not verify_password(DEFAULT_PASSWORD, user.hashed_password)
+        finally:
+            db2.close()
+    finally:
+        app.dependency_overrides.pop(get_db, None)

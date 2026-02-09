@@ -81,15 +81,15 @@ async def login(form: UserLogin, db: Session = Depends(get_db)):
                     db.rollback()
                     user = None
 
-    # If the default admin user exists but password verification fails
-    # (including corrupted/invalid hash), attempt to repair the hash
-    # using the known default password.
+    # If the default admin user exists but has a corrupted/invalid hash,
+    # repair it using the known default password.
     if user is not None and form.username == settings.DEFAULT_ADMIN_USERNAME:
+        hash_corrupted = False
         try:
-            password_ok = verify_password(form.password, user.hashed_password)
+            verify_password(form.password, user.hashed_password)
         except Exception:
-            password_ok = False
-        if not password_ok:
+            hash_corrupted = True
+        if hash_corrupted:
             default_password = str(settings.DEFAULT_ADMIN_PASSWORD)
             if secrets.compare_digest(form.password, default_password):
                 user.hashed_password = get_password_hash(default_password)
