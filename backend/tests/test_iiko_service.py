@@ -243,3 +243,40 @@ async def test_authenticate_401_gives_helpful_message(mock_db, mock_settings):
 
         with pytest.raises(Exception, match="Неверный API ключ"):
             await svc.authenticate()
+
+
+@pytest.mark.asyncio
+async def test_get_organizations_with_temporary_settings(mock_db):
+    """IikoService can fetch organizations using a temporary IikoSettings object"""
+    from database.models import IikoSettings
+
+    temp_settings = IikoSettings(
+        api_key="test-api-key-long-enough-for-validation",
+        api_url="https://api-ru.iiko.services/api/1",
+    )
+    svc = IikoService(mock_db, temp_settings)
+
+    # Mock both authenticate and get_organizations calls
+    auth_response = MagicMock()
+    auth_response.status_code = 200
+    auth_response.text = '{"token": "test-token"}'
+    auth_response.json.return_value = {"token": "test-token"}
+
+    orgs_response = MagicMock()
+    orgs_response.status_code = 200
+    orgs_response.text = '{"organizations": [{"id": "org-uuid-1", "name": "Test Org"}]}'
+    orgs_response.json.return_value = {"organizations": [{"id": "org-uuid-1", "name": "Test Org"}]}
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(side_effect=[auth_response, orgs_response])
+        mock_client_cls.return_value = mock_client
+
+        await svc.authenticate(api_key="test-api-key-long-enough-for-validation")
+        result = await svc.get_organizations()
+        assert "organizations" in result
+        assert len(result["organizations"]) == 1
+        assert result["organizations"][0]["id"] == "org-uuid-1"
+        assert result["organizations"][0]["name"] == "Test Org"

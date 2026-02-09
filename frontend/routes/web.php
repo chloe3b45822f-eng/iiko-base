@@ -31,6 +31,7 @@ Route::middleware('admin.session')->group(function () {
     Route::put('/admin/api/iiko-settings/{id}', [AdminController::class, 'apiUpdateIikoSettings'])->name('admin.api.iiko_settings.update');
     Route::post('/admin/api/iiko-test', [AdminController::class, 'apiTestConnection'])->name('admin.api.iiko_test');
     Route::post('/admin/api/iiko-organizations', [AdminController::class, 'apiOrganizations'])->name('admin.api.iiko_organizations');
+    Route::post('/admin/api/iiko-organizations-by-key', [AdminController::class, 'apiOrganizationsByKey'])->name('admin.api.iiko_organizations_by_key');
     Route::post('/admin/api/iiko-terminal-groups', [AdminController::class, 'apiTerminalGroups'])->name('admin.api.iiko_terminal_groups');
     Route::post('/admin/api/iiko-payment-types', [AdminController::class, 'apiPaymentTypes'])->name('admin.api.iiko_payment_types');
     Route::post('/admin/api/iiko-couriers', [AdminController::class, 'apiCouriers'])->name('admin.api.iiko_couriers');
