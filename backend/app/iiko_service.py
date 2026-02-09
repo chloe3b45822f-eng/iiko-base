@@ -2,6 +2,7 @@
 Сервис-коннектор для iiko Cloud API
 """
 import json
+import logging
 import time
 from typing import Optional
 import httpx
@@ -10,6 +11,8 @@ from sqlalchemy.sql import func as sa_func
 from database.models import ApiLog, IikoSettings
 from config.settings import settings
 from app.iiko_auth import get_access_token
+
+logger = logging.getLogger(__name__)
 
 MAX_LOG_BODY_LENGTH = 2000
 MIN_API_KEY_LENGTH = 16  # iiko API keys are typically 32 characters, but allow shorter for flexibility
@@ -104,8 +107,10 @@ class IikoService:
             
             return self._token
         except Exception as e:
-            # Если централизованное получение не удалось, пробуем локальный метод
-            # (для обратной совместимости)
+            # FALLBACK: Если централизованное получение не удалось, пробуем локальный метод
+            # Это необходимо для обратной совместимости и для случаев, когда используются
+            # разные API ключи для разных организаций (из БД, а не из переменных окружения)
+            logger.warning(f"Централизованное получение токена не удалось, используем локальный метод: {e}")
             key = api_key or (self.iiko_settings.api_key if self.iiko_settings else settings.IIKO_API_KEY)
             key = key.strip()
             if not key:

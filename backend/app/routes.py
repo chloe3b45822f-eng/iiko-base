@@ -34,6 +34,11 @@ _app_start_time = time.time()
 
 api_router = APIRouter()
 
+# Константы для типов событий вебхуков iiko
+WEBHOOK_EVENT_ORDER_CHANGED = "OrderChanged"
+WEBHOOK_EVENT_DELIVERY_ORDER_CHANGED = "DeliveryOrderChanged"
+WEBHOOK_EVENT_ORDER = "order"
+
 
 # ─── Auth ────────────────────────────────────────────────────────────────
 @api_router.post("/auth/register", tags=["auth"], response_model=UserResponse)
@@ -1033,7 +1038,14 @@ async def iiko_webhook(
     auth_token = request.headers.get("Authorization") or request.headers.get("authToken")
     
     # Проверяем секретный ключ
-    expected_secret = settings.WEBHOOK_SECRET_KEY or "default-secret-key"
+    expected_secret = settings.WEBHOOK_SECRET_KEY
+    if not expected_secret:
+        logger.error("WEBHOOK_SECRET_KEY не настроен в переменных окружения")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: webhook secret not configured"
+        )
+    
     if auth_token != expected_secret:
         logger.warning(f"Неверный секретный ключ вебхука: {auth_token}")
         raise HTTPException(status_code=401, detail="Unauthorized: неверный секретный ключ")
@@ -1061,7 +1073,7 @@ async def iiko_webhook(
     db.add(webhook_event)
     
     # Обрабатываем событие заказа
-    if event_type in ["OrderChanged", "DeliveryOrderChanged", "order"]:
+    if event_type in [WEBHOOK_EVENT_ORDER_CHANGED, WEBHOOK_EVENT_DELIVERY_ORDER_CHANGED, WEBHOOK_EVENT_ORDER]:
         try:
             # Извлекаем информацию о заказе
             order_data = payload.get("order") or payload.get("data") or {}

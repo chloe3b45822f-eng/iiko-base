@@ -87,6 +87,11 @@ async def register_webhook_on_startup():
         
         logger.info("Регистрация вебхука в iiko...")
         
+        # Проверяем, настроен ли webhook secret
+        if not settings.WEBHOOK_SECRET_KEY:
+            logger.warning("WEBHOOK_SECRET_KEY не настроен, пропускаем регистрацию вебхука")
+            return
+        
         # Импортируем здесь, чтобы избежать циклических зависимостей
         from database.connection import SessionLocal
         from database.models import IikoSettings
@@ -108,13 +113,12 @@ async def register_webhook_on_startup():
             
             # Формируем URL вебхука
             webhook_url = f"{settings.WEBHOOK_BASE_URL.rstrip('/')}/api/v1/webhook/iiko"
-            webhook_secret = settings.WEBHOOK_SECRET_KEY or "default-secret-key"
             
             # Регистрируем вебхук
             result = await service.register_webhook(
                 iiko_settings.organization_id,
                 webhook_url,
-                webhook_secret
+                settings.WEBHOOK_SECRET_KEY
             )
             
             logger.info(f"Вебхук успешно зарегистрирован: {webhook_url}")
