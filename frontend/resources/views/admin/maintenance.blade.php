@@ -833,8 +833,10 @@ async function saveSettings() {
     let orgName = null;
     if (orgIdFromSelect) {
         const sel = document.getElementById('org-id-select');
-        const selectedOption = sel.options[sel.selectedIndex];
-        orgName = selectedOption ? selectedOption.getAttribute('data-org-name') : null;
+        if (sel && sel.selectedIndex >= 0) {
+            const selectedOption = sel.options[sel.selectedIndex];
+            orgName = selectedOption ? selectedOption.getAttribute('data-org-name') : null;
+        }
     }
 
     const body = {
