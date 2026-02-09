@@ -39,6 +39,18 @@ ADMIN_USERNAME_ESCAPED="${ADMIN_USERNAME//\'/\'\'}"
 ADMIN_EMAIL_ESCAPED="${ADMIN_EMAIL//\'/\'\'}"
 # No escaping needed for EXPECTED_HASH as it's within single quotes in psql
 
+# Input validation for security
+# Validate DB_USER contains only alphanumeric and underscore
+if ! [[ "$DB_USER" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo -e "${RED}✗ Invalid DB_USER: must contain only letters, numbers, and underscores${NC}"
+    exit 1
+fi
+# Validate DB_NAME contains only alphanumeric and underscore
+if ! [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]]; then
+    echo -e "${RED}✗ Invalid DB_NAME: must contain only letters, numbers, and underscores${NC}"
+    exit 1
+fi
+
 # Security warning if using default passwords
 if [ "$DB_PASSWORD" = "12101991Qq!" ] || [ "$ADMIN_PASSWORD" = "12101991Qq!" ]; then
     echo -e "${RED}⚠️  WARNING: Using default passwords!${NC}"
@@ -425,9 +437,15 @@ else
             # Check if .env exists
             if [ ! -f ".env" ] && [ -f ".env.example" ]; then
                 cp .env.example .env
+                # Update DATABASE_URL in .env if needed
+                if [ -f ".env" ]; then
+                    # Update DATABASE_URL to match current configuration
+                    sed -i "s|DATABASE_URL=.*|DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}|g" .env
+                fi
                 echo "  Created .env from .env.example"
             fi
             # Start backend in background
+            # Note: Binds to 0.0.0.0 to allow external access. Use firewall rules or nginx proxy for production security.
             nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/iiko-backend.log 2>&1 &
             BACKEND_PID=$!
             cd "$ORIG_DIR"
