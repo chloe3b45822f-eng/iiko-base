@@ -756,12 +756,27 @@ async function testConnection() {
     try {
         const result = await apiPost('/admin/api/iiko-test', { setting_id: currentSettingId });
         if (result.status >= 400) {
-            statusEl.innerHTML = '<div class="alert alert-danger">❌ Ошибка подключения: ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+            let errorMsg = result.data.detail || JSON.stringify(result.data);
+            
+            // Add helpful hints based on error type
+            if (errorMsg.includes('401') || errorMsg.includes('Неверные') || errorMsg.includes('Invalid')) {
+                errorMsg += '<br><br><strong>Решение:</strong><br>' +
+                    '1. Проверьте API ключ в личном кабинете iiko Cloud<br>' +
+                    '2. Убедитесь что ключ активен и не истёк<br>' +
+                    '3. Скопируйте ключ полностью, без пробелов<br>' +
+                    '4. Используйте новый API ключ из раздела API в iiko Cloud';
+            } else if (errorMsg.includes('timeout') || errorMsg.includes('Тайм-аут')) {
+                errorMsg += '<br><br><strong>Решение:</strong> Проверьте доступность сервера iiko и интернет-соединение';
+            } else if (errorMsg.includes('DNS') || errorMsg.includes('подключения')) {
+                errorMsg += '<br><br><strong>Решение:</strong> Проверьте URL API и сетевые настройки';
+            }
+            
+            statusEl.innerHTML = '<div class="alert alert-danger">❌ Ошибка: ' + errorMsg + '</div>';
         } else {
             statusEl.innerHTML = '<div class="alert alert-success">✓ Подключение к iiko API успешно! Токен получен.</div>';
         }
     } catch (err) {
-        statusEl.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+        statusEl.innerHTML = '<div class="alert alert-danger">❌ Ошибка подключения: ' + escapeHtml(err.message) + '<br><small>Проверьте что Backend API запущен</small></div>';
     }
 }
 
