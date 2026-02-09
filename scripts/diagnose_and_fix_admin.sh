@@ -88,7 +88,13 @@ echo ""
 
 # Test 2: Check database connection
 echo -e "${YELLOW}[2/10] Testing database connection...${NC}"
-if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+# Temporarily disable set -e for this test
+set +e
+DB_CONNECT_TEST=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" 2>&1)
+DB_CONNECT_RESULT=$?
+set -e
+
+if [ $DB_CONNECT_RESULT -eq 0 ]; then
     echo -e "${GREEN}✓ Database connection successful${NC}"
 else
     echo -e "${RED}✗ Cannot connect to database${NC}"
@@ -98,14 +104,19 @@ else
     echo "  Attempting to create database user and database..."
     
     # Try to create the database user
+    set +e
     USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" 2>/dev/null)
+    set -e
     if [ "$USER_EXISTS" != "1" ]; then
         echo "  Creating database user: $DB_USER"
+        set +e
         sudo -u postgres psql <<EOF > /dev/null 2>&1
 CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
 ALTER USER $DB_USER CREATEDB;
 EOF
-        if [ $? -eq 0 ]; then
+        CREATE_USER_RESULT=$?
+        set -e
+        if [ $CREATE_USER_RESULT -eq 0 ]; then
             echo -e "${GREEN}✓ Database user created${NC}"
             ((FIXES_APPLIED++))
         else
@@ -118,14 +129,19 @@ EOF
     fi
     
     # Try to create the database
+    set +e
     DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null)
+    set -e
     if [ "$DB_EXISTS" != "1" ]; then
         echo "  Creating database: $DB_NAME"
+        set +e
         sudo -u postgres psql <<EOF > /dev/null 2>&1
 CREATE DATABASE $DB_NAME OWNER $DB_USER;
 GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 EOF
-        if [ $? -eq 0 ]; then
+        CREATE_DB_RESULT=$?
+        set -e
+        if [ $CREATE_DB_RESULT -eq 0 ]; then
             echo -e "${GREEN}✓ Database created${NC}"
             ((FIXES_APPLIED++))
         else
@@ -138,7 +154,11 @@ EOF
     fi
     
     # Test connection again
-    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+    set +e
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1
+    RETEST_RESULT=$?
+    set -e
+    if [ $RETEST_RESULT -eq 0 ]; then
         echo -e "${GREEN}✓ Database connection successful after fixes${NC}"
     else
         echo -e "${RED}✗ Still cannot connect to database${NC}"
@@ -171,6 +191,7 @@ else
     
     if [ -n "$BACKEND_DIR" ] && [ -f "$BACKEND_DIR/database/models.py" ]; then
         echo "  Found backend directory: $BACKEND_DIR"
+        ORIG_DIR=$(pwd)
         cd "$BACKEND_DIR"
         python3 <<'PYEOF' 2>&1
 try:
@@ -182,7 +203,9 @@ except Exception as e:
     print(f"  ✗ Error creating tables: {e}")
     exit(1)
 PYEOF
-        if [ $? -eq 0 ]; then
+        CREATE_RESULT=$?
+        cd "$ORIG_DIR"
+        if [ $CREATE_RESULT -eq 0 ]; then
             echo -e "${GREEN}✓ Database tables created${NC}"
             ((FIXES_APPLIED++))
         else
@@ -191,7 +214,6 @@ PYEOF
             ((ERRORS++))
             exit 1
         fi
-        cd - > /dev/null
     else
         echo -e "${RED}✗ Cannot find backend directory to create tables${NC}"
         echo "  Manual fix: Run database migration: ./scripts/setup.sh"
@@ -398,6 +420,7 @@ else
         
         if [ -n "$BACKEND_DIR" ] && [ -f "$BACKEND_DIR/app/main.py" ]; then
             echo "  Starting backend directly from: $BACKEND_DIR"
+            ORIG_DIR=$(pwd)
             cd "$BACKEND_DIR"
             # Check if .env exists
             if [ ! -f ".env" ] && [ -f ".env.example" ]; then
@@ -407,6 +430,7 @@ else
             # Start backend in background
             nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/iiko-backend.log 2>&1 &
             BACKEND_PID=$!
+            cd "$ORIG_DIR"
             sleep 3
             if kill -0 $BACKEND_PID 2>/dev/null; then
                 echo -e "${GREEN}✓ Backend started directly (PID: $BACKEND_PID)${NC}"
@@ -417,7 +441,6 @@ else
                 echo -e "${RED}✗ Backend failed to start${NC}"
                 echo "  Check logs: cat /tmp/iiko-backend.log"
             fi
-            cd - > /dev/null
         fi
     fi
     
