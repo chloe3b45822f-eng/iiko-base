@@ -146,7 +146,14 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Organization ID (необязательно)</label>
-                    <input type="text" class="form-input" id="org-id-input" placeholder="UUID организации">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select class="form-input" id="org-id-select" style="flex:1;">
+                            <option value="">— Не выбрано —</option>
+                        </select>
+                        <button type="button" class="btn btn-sm" id="btn-load-orgs" onclick="loadOrganizations()" title="Загрузить организации по API ключу">🔄 Загрузить</button>
+                    </div>
+                    <input type="text" class="form-input" id="org-id-input" placeholder="Или введите UUID вручную" style="margin-top:6px;font-size:12px;">
+                    <div id="org-load-message" style="margin-top:4px;font-size:11px;"></div>
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">💾 Сохранить</button>
@@ -687,8 +694,98 @@ function selectSetting(id) {
     const setting = settingsList.find(s => s.id === id);
     if (setting) {
         document.getElementById('api-url-input').value = setting.api_url || '';
-        document.getElementById('org-id-input').value = setting.organization_id || '';
+        // Set dropdown if matching option exists, otherwise set manual input
+        const sel = document.getElementById('org-id-select');
+        const manualInput = document.getElementById('org-id-input');
+        if (setting.organization_id) {
+            let found = false;
+            for (let i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === setting.organization_id) {
+                    sel.value = setting.organization_id;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                manualInput.value = setting.organization_id;
+                sel.value = '';
+            } else {
+                manualInput.value = '';
+            }
+        } else {
+            sel.value = '';
+            manualInput.value = '';
+        }
     }
+}
+
+async function loadOrganizations() {
+    const apiKey = document.getElementById('api-key-input').value.trim();
+    const apiUrl = document.getElementById('api-url-input').value.trim();
+    const sel = document.getElementById('org-id-select');
+    const msgEl = document.getElementById('org-load-message');
+
+    // If we have a saved setting selected, use setting_id endpoint
+    if (currentSettingId && !apiKey) {
+        msgEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;"></span> Загрузка организаций...';
+        try {
+            const result = await apiPost('/admin/api/iiko-organizations', { setting_id: currentSettingId });
+            if (result.status >= 400) {
+                msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</span>';
+                return;
+            }
+            const orgs = result.data.organizations || [];
+            populateOrgSelect(sel, orgs);
+            msgEl.innerHTML = '<span style="color:var(--success);">✓ Загружено организаций: ' + orgs.length + '</span>';
+        } catch (err) {
+            msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ ' + escapeHtml(err.message) + '</span>';
+        }
+        return;
+    }
+
+    // Otherwise use API key directly
+    if (!apiKey) {
+        msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ Введите API ключ для загрузки организаций</span>';
+        return;
+    }
+
+    msgEl.innerHTML = '<span class="spinner" style="width:14px;height:14px;"></span> Загрузка организаций...';
+    try {
+        const result = await apiPost('/admin/api/iiko-organizations-by-key', {
+            api_key: apiKey,
+            api_url: apiUrl || 'https://api-ru.iiko.services/api/1',
+        });
+        if (result.status >= 400) {
+            msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</span>';
+            return;
+        }
+        const orgs = result.data.organizations || [];
+        populateOrgSelect(sel, orgs);
+        msgEl.innerHTML = '<span style="color:var(--success);">✓ Загружено организаций: ' + orgs.length + '</span>';
+    } catch (err) {
+        msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ ' + escapeHtml(err.message) + '</span>';
+    }
+}
+
+function populateOrgSelect(sel, orgs) {
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">— Не выбрано —</option>';
+    orgs.forEach(org => {
+        const id = org.id || '';
+        const name = org.name || id;
+        sel.innerHTML += '<option value="' + escapeHtml(id) + '">' + escapeHtml(name) + ' (' + escapeHtml(id).substring(0, 8) + '...)</option>';
+    });
+    // Restore previous selection if it still exists
+    if (currentVal) {
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === currentVal) {
+                sel.value = currentVal;
+                break;
+            }
+        }
+    }
+    // Clear manual input when dropdown is populated
+    document.getElementById('org-id-input').value = '';
 }
 
 function populateSettingSelects() {
@@ -706,7 +803,9 @@ function populateSettingSelects() {
 async function saveSettings() {
     const apiKey = document.getElementById('api-key-input').value.trim();
     const apiUrl = document.getElementById('api-url-input').value.trim();
-    const orgId = document.getElementById('org-id-input').value.trim();
+    const orgIdFromSelect = document.getElementById('org-id-select').value;
+    const orgIdFromInput = document.getElementById('org-id-input').value.trim();
+    const orgId = orgIdFromSelect || orgIdFromInput;
     const msgEl = document.getElementById('settings-message');
 
     // When updating existing settings, API key is optional

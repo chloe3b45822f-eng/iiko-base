@@ -371,6 +371,30 @@ async def get_iiko_organizations(
     return await svc.get_organizations()
 
 
+@api_router.post("/iiko/organizations-by-key", tags=["iiko"])
+async def get_iiko_organizations_by_key(
+    request: Request,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить список организаций из iiko по API ключу (без сохранённой настройки)"""
+    body = await request.json()
+    api_key = (body.get("api_key") or "").strip()
+    api_url = (body.get("api_url") or "https://api-ru.iiko.services/api/1").strip()
+
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API ключ (apiLogin) обязателен")
+
+    # Create a temporary settings-like object for IikoService
+    temp_settings = IikoSettings(
+        api_key=api_key,
+        api_url=api_url,
+    )
+    svc = IikoService(db, temp_settings)
+    await svc.authenticate(api_key=api_key)
+    return await svc.get_organizations()
+
+
 @api_router.post("/iiko/menu", tags=["iiko"])
 async def get_iiko_menu(
     setting_id: int,

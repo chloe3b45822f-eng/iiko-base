@@ -178,6 +178,11 @@ class AdminController extends Controller
         return $this->proxyPost($request, "/iiko/organizations?setting_id={$settingId}");
     }
 
+    public function apiOrganizationsByKey(Request $request): JsonResponse
+    {
+        return $this->proxyPost($request, '/iiko/organizations-by-key', $request->only(['api_key', 'api_url']));
+    }
+
     public function apiTerminalGroups(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
