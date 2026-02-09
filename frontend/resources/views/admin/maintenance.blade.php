@@ -130,7 +130,15 @@
             <div class="settings-form">
                 <div class="form-group">
                     <label class="form-label">API ключ (apiLogin)</label>
-                    <input type="text" class="form-input" id="api-key-input" placeholder="Введите ваш iiko API логин">
+                    <div style="position:relative;">
+                        <input type="password" class="form-input" id="api-key-input" placeholder="Введите ваш iiko API логин" autocomplete="new-password" style="padding-right:40px;">
+                        <button type="button" onclick="toggleApiKeyVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;" title="Показать/скрыть">
+                            <span id="api-key-toggle-icon">👁</span>
+                        </button>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                        💡 При редактировании оставьте пустым, чтобы сохранить текущий ключ
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">API URL</label>
@@ -701,16 +709,22 @@ async function saveSettings() {
     const orgId = document.getElementById('org-id-input').value.trim();
     const msgEl = document.getElementById('settings-message');
 
-    if (!apiKey) {
-        msgEl.innerHTML = '<div class="alert alert-warning">⚠️ Введите API ключ</div>';
+    // When updating existing settings, API key is optional
+    // When creating new settings, API key is required
+    if (!currentSettingId && !apiKey) {
+        msgEl.innerHTML = '<div class="alert alert-warning">⚠️ Введите API ключ для новой интеграции</div>';
         return;
     }
 
     const body = {
-        api_key: apiKey,
         api_url: apiUrl || 'https://api-ru.iiko.services/api/1',
         organization_id: orgId || null,
     };
+
+    // Only include api_key if it's provided (non-empty)
+    if (apiKey) {
+        body.api_key = apiKey;
+    }
 
     try {
         let result;
@@ -725,6 +739,8 @@ async function saveSettings() {
         } else {
             msgEl.innerHTML = '<div class="alert alert-success">✓ Настройки сохранены</div>';
             currentSettingId = result.data.id || currentSettingId;
+            // Clear the API key input after successful save for security
+            document.getElementById('api-key-input').value = '';
             loadSettings();
         }
     } catch (err) {
@@ -1191,6 +1207,18 @@ async function createOrUpdateCustomer() {
         if (result.status >= 400) { container.innerHTML = '<div class="alert alert-danger">⚠️ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>'; return; }
         container.innerHTML = '<div class="alert alert-success">✅ Гость сохранен. ID: ' + escapeHtml(result.data.id || JSON.stringify(result.data)) + '</div>';
     } catch (err) { container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>'; }
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('api-key-input');
+    const icon = document.getElementById('api-key-toggle-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        icon.textContent = '👁';
+    }
 }
 
 // ─── Init ────────────────────────────────────────────────
