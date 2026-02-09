@@ -63,8 +63,26 @@ if systemctl is-active --quiet postgresql 2>/dev/null || pgrep -x postgres > /de
     echo -e "${GREEN}✓ PostgreSQL is running${NC}"
 else
     echo -e "${RED}✗ PostgreSQL is NOT running${NC}"
-    echo "  Fix: sudo systemctl start postgresql"
-    ((ERRORS++))
+    echo "  Attempting to start PostgreSQL..."
+    
+    if sudo systemctl start postgresql 2>/dev/null; then
+        # Wait a moment for PostgreSQL to fully start
+        sleep 2
+        if systemctl is-active --quiet postgresql 2>/dev/null || pgrep -x postgres > /dev/null; then
+            echo -e "${GREEN}✓ PostgreSQL started successfully${NC}"
+            ((FIXES_APPLIED++))
+        else
+            echo -e "${RED}✗ Failed to start PostgreSQL${NC}"
+            echo "  Manual fix: sudo systemctl start postgresql"
+            ((ERRORS++))
+            exit 1
+        fi
+    else
+        echo -e "${RED}✗ Failed to start PostgreSQL (need sudo)${NC}"
+        echo "  Manual fix: sudo systemctl start postgresql"
+        ((ERRORS++))
+        exit 1
+    fi
 fi
 echo ""
 
@@ -77,9 +95,57 @@ else
     echo "  Database: $DB_NAME"
     echo "  User: $DB_USER"
     echo "  Host: $DB_HOST"
-    echo "  Fix: Check database credentials and PostgreSQL access"
-    ((ERRORS++))
-    exit 1
+    echo "  Attempting to create database user and database..."
+    
+    # Try to create the database user
+    USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" 2>/dev/null)
+    if [ "$USER_EXISTS" != "1" ]; then
+        echo "  Creating database user: $DB_USER"
+        sudo -u postgres psql <<EOF > /dev/null 2>&1
+CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';
+ALTER USER $DB_USER CREATEDB;
+EOF
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Database user created${NC}"
+            ((FIXES_APPLIED++))
+        else
+            echo -e "${RED}✗ Failed to create database user${NC}"
+            ((ERRORS++))
+            exit 1
+        fi
+    else
+        echo "  Database user already exists"
+    fi
+    
+    # Try to create the database
+    DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null)
+    if [ "$DB_EXISTS" != "1" ]; then
+        echo "  Creating database: $DB_NAME"
+        sudo -u postgres psql <<EOF > /dev/null 2>&1
+CREATE DATABASE $DB_NAME OWNER $DB_USER;
+GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
+EOF
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Database created${NC}"
+            ((FIXES_APPLIED++))
+        else
+            echo -e "${RED}✗ Failed to create database${NC}"
+            ((ERRORS++))
+            exit 1
+        fi
+    else
+        echo "  Database already exists"
+    fi
+    
+    # Test connection again
+    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Database connection successful after fixes${NC}"
+    else
+        echo -e "${RED}✗ Still cannot connect to database${NC}"
+        echo "  Manual intervention required"
+        ((ERRORS++))
+        exit 1
+    fi
 fi
 echo ""
 
@@ -91,9 +157,47 @@ if [ "$TABLE_EXISTS" = "t" ]; then
     echo -e "${GREEN}✓ Users table exists${NC}"
 else
     echo -e "${RED}✗ Users table does NOT exist${NC}"
-    echo "  Fix: Run database migration: ./scripts/setup.sh"
-    ((ERRORS++))
-    exit 1
+    echo "  Attempting to create database tables..."
+    
+    # Try to find the backend directory and create tables using Python
+    BACKEND_DIR=""
+    if [ -d "/var/www/iiko-base/backend" ]; then
+        BACKEND_DIR="/var/www/iiko-base/backend"
+    elif [ -d "$(pwd)/backend" ]; then
+        BACKEND_DIR="$(pwd)/backend"
+    elif [ -d "../backend" ]; then
+        BACKEND_DIR="../backend"
+    fi
+    
+    if [ -n "$BACKEND_DIR" ] && [ -f "$BACKEND_DIR/database/models.py" ]; then
+        echo "  Found backend directory: $BACKEND_DIR"
+        cd "$BACKEND_DIR"
+        python3 <<'PYEOF' 2>&1
+try:
+    from database.connection import engine, Base
+    from database.models import User, MenuItem, IikoSettings, Order, WebhookEvent, ApiLog
+    Base.metadata.create_all(bind=engine)
+    print("  ✓ Database tables created successfully")
+except Exception as e:
+    print(f"  ✗ Error creating tables: {e}")
+    exit(1)
+PYEOF
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Database tables created${NC}"
+            ((FIXES_APPLIED++))
+        else
+            echo -e "${RED}✗ Failed to create database tables${NC}"
+            echo "  Manual fix: Run database migration or setup script"
+            ((ERRORS++))
+            exit 1
+        fi
+        cd - > /dev/null
+    else
+        echo -e "${RED}✗ Cannot find backend directory to create tables${NC}"
+        echo "  Manual fix: Run database migration: ./scripts/setup.sh"
+        ((ERRORS++))
+        exit 1
+    fi
 fi
 echo ""
 
@@ -255,16 +359,73 @@ echo ""
 
 # Test 8: Check backend service
 echo -e "${YELLOW}[8/10] Checking backend service...${NC}"
+BACKEND_RUNNING=false
 if systemctl is-active --quiet iiko-backend 2>/dev/null; then
     echo -e "${GREEN}✓ Backend service is running (systemd)${NC}"
+    BACKEND_RUNNING=true
 elif docker ps | grep -q iiko.*backend 2>/dev/null; then
     echo -e "${GREEN}✓ Backend service is running (Docker)${NC}"
+    BACKEND_RUNNING=true
 elif pgrep -f "uvicorn.*app.main" > /dev/null; then
     echo -e "${GREEN}✓ Backend service is running (direct)${NC}"
+    BACKEND_RUNNING=true
 else
-    echo -e "${YELLOW}⚠ Backend service status unknown${NC}"
-    echo "  Check: sudo systemctl status iiko-backend"
-    echo "  Or: docker-compose ps"
+    echo -e "${YELLOW}⚠ Backend service is not running${NC}"
+    echo "  Attempting to start backend service..."
+    
+    # Try systemd first
+    if systemctl list-unit-files | grep -q iiko-backend 2>/dev/null; then
+        if sudo systemctl start iiko-backend 2>/dev/null; then
+            sleep 2
+            if systemctl is-active --quiet iiko-backend 2>/dev/null; then
+                echo -e "${GREEN}✓ Backend service started (systemd)${NC}"
+                BACKEND_RUNNING=true
+                ((FIXES_APPLIED++))
+            fi
+        fi
+    fi
+    
+    # If systemd didn't work and backend directory exists, try to start directly
+    if [ "$BACKEND_RUNNING" = false ]; then
+        BACKEND_DIR=""
+        if [ -d "/var/www/iiko-base/backend" ]; then
+            BACKEND_DIR="/var/www/iiko-base/backend"
+        elif [ -d "$(pwd)/backend" ]; then
+            BACKEND_DIR="$(pwd)/backend"
+        elif [ -d "../backend" ]; then
+            BACKEND_DIR="../backend"
+        fi
+        
+        if [ -n "$BACKEND_DIR" ] && [ -f "$BACKEND_DIR/app/main.py" ]; then
+            echo "  Starting backend directly from: $BACKEND_DIR"
+            cd "$BACKEND_DIR"
+            # Check if .env exists
+            if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+                cp .env.example .env
+                echo "  Created .env from .env.example"
+            fi
+            # Start backend in background
+            nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/iiko-backend.log 2>&1 &
+            BACKEND_PID=$!
+            sleep 3
+            if kill -0 $BACKEND_PID 2>/dev/null; then
+                echo -e "${GREEN}✓ Backend started directly (PID: $BACKEND_PID)${NC}"
+                echo "  Logs: /tmp/iiko-backend.log"
+                BACKEND_RUNNING=true
+                ((FIXES_APPLIED++))
+            else
+                echo -e "${RED}✗ Backend failed to start${NC}"
+                echo "  Check logs: cat /tmp/iiko-backend.log"
+            fi
+            cd - > /dev/null
+        fi
+    fi
+    
+    if [ "$BACKEND_RUNNING" = false ]; then
+        echo -e "${YELLOW}⚠ Could not start backend automatically${NC}"
+        echo "  Manual fix: sudo systemctl start iiko-backend"
+        echo "  Or: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    fi
 fi
 echo ""
 
