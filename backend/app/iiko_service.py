@@ -160,7 +160,7 @@ class IikoService:
         return await self._request(
             "POST",
             "/employees/couriers",
-            json_data={"organizationId": organization_id},
+            json_data={"organizationIds": [organization_id]},
         )
 
     async def get_order_types(self, organization_ids: list) -> dict:
@@ -194,5 +194,59 @@ class IikoService:
                 "organizationId": organization_id,
                 "webHooksUri": webhook_url,
                 "authToken": auth_token,
+                "webHooksFilter": {
+                    "deliveryOrderFilter": {
+                        "orderStatuses": [
+                            "Unconfirmed", "WaitCooking", "ReadyForCooking",
+                            "CookingStarted", "CookingCompleted", "Waiting",
+                            "OnWay", "Delivered", "Closed", "Cancelled"
+                        ],
+                        "itemStatuses": [
+                            "Added", "PrintedNotCooking", "CookingStarted",
+                            "CookingCompleted", "Served"
+                        ],
+                        "errors": True,
+                    },
+                    "tableOrderFilter": {
+                        "orderStatuses": ["New"],
+                        "itemStatuses": ["Added"],
+                        "errors": True,
+                    },
+                    "reserveFilter": {
+                        "updates": True,
+                        "errors": True,
+                    },
+                    "stopListUpdateFilter": {
+                        "updates": True,
+                    },
+                    "personalShiftFilter": {
+                        "updates": True,
+                    },
+                },
+            },
+        )
+
+    async def get_webhook_settings(self, organization_id: str) -> dict:
+        """Получить текущие настройки вебхука"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/webhooks/settings",
+            json_data={"organizationId": organization_id},
+        )
+
+    async def get_deliveries_by_statuses(self, organization_id: str, statuses: list) -> dict:
+        """Получить заказы по статусам"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/by_delivery_date_and_status",
+            json_data={
+                "organizationIds": [organization_id],
+                "deliveryDateFrom": None,
+                "deliveryDateTo": None,
+                "statuses": statuses,
             },
         )
