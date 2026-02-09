@@ -75,7 +75,7 @@ async def run_diagnostics(api_key: str, api_url: str, verbose: bool = False) -> 
     if not api_key:
         _fail("API-ключ пуст. Укажите через --api-key или переменную окружения IIKO_API_KEY.")
         return False
-    if api_key in ("your-iiko-api-key", "change-me", ""):
+    if api_key in ("your-iiko-api-key", "change-me"):
         _fail(f"API-ключ содержит значение-заглушку: '{api_key}'. Замените на настоящий ключ.")
         return False
     if len(api_key) < 10:

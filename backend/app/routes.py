@@ -312,8 +312,9 @@ async def diagnose_iiko_connection(
         checks.append({"step": "api_key_format", "ok": False, "detail": f"api_key слишком короткий ({len(api_key)} символов). Обычно ключ iiko содержит 30+ символов."})
         return {"status": "error", "checks": checks}
     if api_key != rec.api_key:
-        checks.append({"step": "api_key_format", "ok": False, "detail": "api_key содержит лишние пробелы в начале/конце. Они будут удалены при отправке."})
-    checks.append({"step": "api_key_format", "ok": True, "detail": f"api_key задан ({len(api_key)} символов, начинается с '{api_key[:4]}...')"})
+        checks.append({"step": "api_key_format", "ok": True, "detail": f"api_key содержит лишние пробелы (удалены автоматически). Ключ: {len(api_key)} символов, начинается с '{api_key[:4]}...'"})
+    else:
+        checks.append({"step": "api_key_format", "ok": True, "detail": f"api_key задан ({len(api_key)} символов, начинается с '{api_key[:4]}...')"})
 
     # 4. Network connectivity check
     import httpx

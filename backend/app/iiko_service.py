@@ -97,9 +97,18 @@ class IikoService:
             )
         try:
             result = await self._request("POST", "/access_token", json_data={"apiLogin": key}, _is_auth=True)
+        except httpx.TimeoutException:
+            raise Exception(
+                f"Тайм-аут подключения к iiko API ({self.base_url}). "
+                f"Проверьте доступность сервера iiko и сетевое подключение."
+            )
+        except httpx.ConnectError as e:
+            raise Exception(
+                f"Ошибка подключения к iiko API ({self.base_url}): {e}. "
+                f"Проверьте доступность сервера, URL и DNS-настройки."
+            )
         except Exception as e:
             error_msg = str(e)
-            # Provide more user-friendly error messages for common failures
             if "401" in error_msg:
                 raise Exception(
                     f"Неверный API ключ (apiLogin). Проверьте: "
@@ -107,21 +116,6 @@ class IikoService:
                     f"2) API-ключ активен в личном кабинете iiko Cloud (https://api-ru.iiko.services); "
                     f"3) Ключ не был отозван или заменён. "
                     f"Текущий ключ (первые 8 символов): '{key[:8]}...'"
-                )
-            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
-                raise Exception(
-                    f"Тайм-аут подключения к iiko API ({self.base_url}). "
-                    f"Проверьте доступность сервера iiko и сетевое подключение."
-                )
-            if "name resolution" in error_msg.lower() or "getaddrinfo" in error_msg.lower():
-                raise Exception(
-                    f"Не удалось разрешить DNS-имя сервера iiko API ({self.base_url}). "
-                    f"Проверьте URL API и DNS-настройки сервера."
-                )
-            if "connection" in error_msg.lower() and ("refused" in error_msg.lower() or "error" in error_msg.lower()):
-                raise Exception(
-                    f"Ошибка подключения к iiko API ({self.base_url}). "
-                    f"Проверьте доступность сервера и правильность URL."
                 )
             raise
         # iiko API may return token as plain text string or as JSON {"token": "..."}
