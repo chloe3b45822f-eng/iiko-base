@@ -48,10 +48,16 @@ class IikoService:
         path: str,
         json_data: Optional[dict] = None,
         headers: Optional[dict] = None,
+        _retried: bool = False,
     ) -> dict:
         url = f"{self.base_url}/{path.lstrip('/')}"
         req_body = json.dumps(json_data) if json_data else None
-        hdrs = headers or {}
+        hdrs = {
+            "Content-Type": "application/json",
+            "Timeout": "45",
+        }
+        if headers:
+            hdrs.update(headers)
         if self._token:
             hdrs["Authorization"] = f"Bearer {self._token}"
 
@@ -62,6 +68,11 @@ class IikoService:
 
         resp_text = response.text
         self._log_request(method, url, req_body, response.status_code, resp_text, duration)
+
+        # Auto-retry once on 401 (expired token)
+        if response.status_code == 401 and not _retried:
+            await self.authenticate()
+            return await self._request(method, path, json_data, headers, _retried=True)
 
         if response.status_code >= 400:
             raise Exception(f"iiko API error {response.status_code}: {resp_text}")
