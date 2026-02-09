@@ -265,7 +265,14 @@ async def test_iiko_connection(
     try:
         svc = IikoService(db, rec)
         token = await svc.authenticate()
+        if not token:
+            raise HTTPException(
+                status_code=502,
+                detail="iiko API вернул пустой токен. Проверьте API ключ (apiLogin)."
+            )
         return {"status": "ok", "message": "Подключение успешно! Токен получен."}
+    except HTTPException:
+        raise
     except Exception as e:
         error_msg = str(e)
         if "401" in error_msg:

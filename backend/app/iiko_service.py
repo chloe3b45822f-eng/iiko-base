@@ -50,7 +50,7 @@ class IikoService:
         headers: Optional[dict] = None,
         _retried: bool = False,
         _is_auth: bool = False,
-    ) -> dict:
+    ) -> dict | str:
         url = f"{self.base_url}/{path.lstrip('/')}"
         req_body = json.dumps(json_data) if json_data else None
         hdrs = {
@@ -78,13 +78,32 @@ class IikoService:
         if response.status_code >= 400:
             raise Exception(f"iiko API error {response.status_code}: {resp_text}")
 
-        return response.json() if resp_text else {}
+        if not resp_text:
+            return {}
+        # iiko API may return plain text (e.g. access_token endpoint) or JSON
+        try:
+            return response.json()
+        except Exception:
+            return resp_text
 
     async def authenticate(self, api_key: Optional[str] = None) -> str:
         """Получить токен доступа iiko (токен живет ~15 минут)"""
         key = api_key or (self.iiko_settings.api_key if self.iiko_settings else settings.IIKO_API_KEY)
+        key = key.strip()
         result = await self._request("POST", "/access_token", json_data={"apiLogin": key}, _is_auth=True)
-        self._token = result.get("token", "")
+        # iiko API may return token as plain text string or as JSON {"token": "..."}
+        if isinstance(result, str):
+            # Plain text response; strip whitespace and surrounding quotes
+            # (iiko may return a bare JSON string like "token-value")
+            token_str = result.strip()
+            if len(token_str) >= 2 and token_str[0] == '"' and token_str[-1] == '"':
+                token_str = token_str[1:-1]
+            self._token = token_str
+        elif isinstance(result, dict):
+            # JSON response: try "token" (documented) or "access_token" (compatibility)
+            self._token = result.get("token") or result.get("access_token") or ""
+        else:
+            self._token = str(result).strip()
         # Обновить время последнего обновления токена в БД
         if self.iiko_settings:
             self.iiko_settings.last_token_refresh = sa_func.now()

@@ -54,6 +54,73 @@ async def test_iiko_authenticate(mock_db, mock_settings):
 
 
 @pytest.mark.asyncio
+async def test_iiko_authenticate_plain_text_token(mock_db, mock_settings):
+    """iiko API may return token as plain text, not JSON"""
+    svc = IikoService(mock_db, mock_settings)
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = "plain-text-token-value"
+    mock_response.json.side_effect = Exception("Not JSON")
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        token = await svc.authenticate()
+        assert token == "plain-text-token-value"
+        assert svc._token == "plain-text-token-value"
+
+
+@pytest.mark.asyncio
+async def test_iiko_authenticate_quoted_text_token(mock_db, mock_settings):
+    """iiko API may return token wrapped in quotes as plain text"""
+    svc = IikoService(mock_db, mock_settings)
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = '"quoted-token-value"'
+    mock_response.json.return_value = "quoted-token-value"
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        token = await svc.authenticate()
+        assert token == "quoted-token-value"
+        assert svc._token == "quoted-token-value"
+
+
+@pytest.mark.asyncio
+async def test_iiko_authenticate_strips_api_key(mock_db, mock_settings):
+    """API key should be stripped of whitespace before sending"""
+    mock_settings.api_key = "  test-key-with-spaces  "
+    svc = IikoService(mock_db, mock_settings)
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = '{"token": "abc123"}'
+    mock_response.json.return_value = {"token": "abc123"}
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        token = await svc.authenticate()
+        assert token == "abc123"
+        # Verify the API key was stripped when sent
+        call_args = mock_client.request.call_args
+        json_payload = call_args.kwargs.get("json") or call_args[1].get("json")
+        assert json_payload["apiLogin"] == "test-key-with-spaces"
+
+
+@pytest.mark.asyncio
 async def test_register_webhook_includes_organization_id(mock_db, mock_settings):
     """Проверяем, что register_webhook отправляет organizationId в теле запроса"""
     svc = IikoService(mock_db, mock_settings)
