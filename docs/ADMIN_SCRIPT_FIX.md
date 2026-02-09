@@ -21,7 +21,7 @@ Changed to use heredoc syntax with psql's `\set` meta-command, which properly su
 
 **Correct syntax:**
 ```bash
-# Escape single quotes and special characters
+# Escape single quotes for SQL string literals
 ADMIN_USERNAME_ESCAPED="${ADMIN_USERNAME//\'/\'\'}"
 
 psql -tA <<EOF
