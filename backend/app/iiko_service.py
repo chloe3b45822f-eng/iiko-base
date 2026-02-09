@@ -241,13 +241,17 @@ class IikoService:
         """Получить заказы по статусам"""
         if not self._token:
             await self.authenticate()
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        date_from = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S.000")
+        date_to = now.strftime("%Y-%m-%d %H:%M:%S.000")
         return await self._request(
             "POST",
             "/deliveries/by_delivery_date_and_status",
             json_data={
                 "organizationIds": [organization_id],
-                "deliveryDateFrom": None,
-                "deliveryDateTo": None,
+                "deliveryDateFrom": date_from,
+                "deliveryDateTo": date_to,
                 "statuses": statuses,
             },
         )
