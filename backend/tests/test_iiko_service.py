@@ -84,3 +84,67 @@ async def test_register_webhook_includes_organization_id(mock_db, mock_settings)
         assert json_payload["webHooksUri"] == "https://example.com/api/v1/webhooks/iiko"
         assert json_payload["authToken"] == "secret-token"
         assert result == {"status": "ok"}
+
+
+@pytest.mark.asyncio
+async def test_request_includes_timeout_header(mock_db, mock_settings):
+    """Проверяем, что все запросы к iiko API содержат заголовок Timeout"""
+    svc = IikoService(mock_db, mock_settings)
+    svc._token = "pre-set-token"
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = '{"result": "ok"}'
+    mock_response.json.return_value = {"result": "ok"}
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        await svc.get_couriers("org-123")
+
+        call_args = mock_client.request.call_args
+        sent_headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
+        assert sent_headers["Timeout"] == "45"
+        assert sent_headers["Content-Type"] == "application/json"
+        assert sent_headers["Authorization"] == "Bearer pre-set-token"
+
+
+@pytest.mark.asyncio
+async def test_request_retries_on_401(mock_db, mock_settings):
+    """Проверяем, что при 401 запрос повторяется после обновления токена"""
+    svc = IikoService(mock_db, mock_settings)
+    svc._token = "expired-token"
+
+    # First call returns 401, second call (authenticate) returns token,
+    # third call (retry) returns success
+    response_401 = MagicMock()
+    response_401.status_code = 401
+    response_401.text = '{"error": "unauthorized"}'
+
+    response_token = MagicMock()
+    response_token.status_code = 200
+    response_token.text = '{"token": "new-token"}'
+    response_token.json.return_value = {"token": "new-token"}
+
+    response_ok = MagicMock()
+    response_ok.status_code = 200
+    response_ok.text = '{"couriers": []}'
+    response_ok.json.return_value = {"couriers": []}
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.request = AsyncMock(
+            side_effect=[response_401, response_token, response_ok]
+        )
+        mock_client_cls.return_value = mock_client
+
+        result = await svc.get_couriers("org-123")
+        assert result == {"couriers": []}
+        assert svc._token == "new-token"
+        assert mock_client.request.call_count == 3
