@@ -40,6 +40,10 @@ WEBHOOK_EVENT_ORDER_CHANGED = "OrderChanged"
 WEBHOOK_EVENT_DELIVERY_ORDER_CHANGED = "DeliveryOrderChanged"
 WEBHOOK_EVENT_ORDER = "order"
 
+# Default delivery statuses (active orders only, excludes Closed/Cancelled to prevent TOO_MANY_DATA_REQUESTED)
+DEFAULT_DELIVERY_STATUSES = ["Unconfirmed", "WaitCooking", "ReadyForCooking", "CookingStarted",
+                             "CookingCompleted", "Waiting", "OnWay", "Delivered"]
+DEFAULT_DELIVERY_STATUSES_STR = ",".join(DEFAULT_DELIVERY_STATUSES)
 
 # ─── Auth ────────────────────────────────────────────────────────────────
 @api_router.post("/auth/register", tags=["auth"], response_model=UserResponse)
@@ -930,7 +934,7 @@ async def get_iiko_webhook_settings(
 async def get_iiko_deliveries(
     setting_id: int,
     organization_id: str,
-    statuses: str = "Unconfirmed,WaitCooking,ReadyForCooking,CookingStarted,CookingCompleted,Waiting,OnWay,Delivered",
+    statuses: str = DEFAULT_DELIVERY_STATUSES_STR,
     days: int = 1,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_role("operator")),
@@ -953,8 +957,7 @@ async def get_iiko_deliveries(
     status_list = [s.strip() for s in statuses.split(",") if s.strip()]
     # If statuses list is empty after parsing, use safe defaults (active orders only)
     if not status_list:
-        status_list = ["Unconfirmed", "WaitCooking", "ReadyForCooking", "CookingStarted",
-                       "CookingCompleted", "Waiting", "OnWay", "Delivered"]
+        status_list = list(DEFAULT_DELIVERY_STATUSES)
     try:
         return await svc.get_deliveries_by_statuses(org_id, status_list, days)
     except Exception as e:
@@ -1448,7 +1451,7 @@ async def get_sync_history(
         rows = result.fetchall()
     except Exception as e:
         logger.error(f"Error querying sync_history: {e}")
-        return {'history': [], 'error': 'Таблица sync_history не найдена. Выполните миграцию БД (migrate.sql).'}
+        return {'history': [], 'error': 'Таблица sync_history не найдена. Выполните миграцию: psql -f database/migrate.sql'}
     
     return {
         'history': [
@@ -1663,7 +1666,7 @@ async def get_categories(
         rows = result.fetchall()
     except Exception as e:
         logger.error(f"Error querying categories: {e}")
-        return {'categories': [], 'error': 'Таблица categories не найдена. Выполните миграцию БД (migrate.sql).'}
+        return {'categories': [], 'error': 'Таблица categories не найдена. Выполните миграцию: psql -f database/migrate.sql'}
     
     return {
         'categories': [
@@ -1716,7 +1719,7 @@ async def get_products(
         rows = result.fetchall()
     except Exception as e:
         logger.error(f"Error querying products: {e}")
-        return {'products': [], 'error': 'Таблица products не найдена. Выполните миграцию БД (migrate.sql).'}
+        return {'products': [], 'error': 'Таблица products не найдена. Выполните миграцию: psql -f database/migrate.sql'}
     
     return {
         'products': [
@@ -1762,7 +1765,7 @@ async def get_stop_lists(
         rows = result.fetchall()
     except Exception as e:
         logger.error(f"Error querying stop_lists: {e}")
-        return {'stop_lists': [], 'error': 'Таблица stop_lists не найдена. Выполните миграцию БД (migrate.sql).'}
+        return {'stop_lists': [], 'error': 'Таблица stop_lists не найдена. Выполните миграцию: psql -f database/migrate.sql'}
     
     return {
         'stop_lists': [
