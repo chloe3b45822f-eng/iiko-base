@@ -931,17 +931,22 @@ async def get_iiko_deliveries(
     setting_id: int,
     organization_id: str,
     statuses: str = "Unconfirmed,WaitCooking,ReadyForCooking,CookingStarted,CookingCompleted,Waiting,OnWay,Delivered,Closed,Cancelled",
+    days: int = 1,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_role("operator")),
 ):
-    """Получить заказы доставки из iiko по статусам"""
+    """Получить заказы доставки из iiko по статусам (по умолчанию за последний день)"""
+    # Validate days parameter to prevent TOO_MANY_DATA_REQUESTED errors
+    if days < 1 or days > 7:
+        raise HTTPException(status_code=400, detail="Параметр 'days' должен быть от 1 до 7")
+    
     rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
     if not rec:
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     status_list = [s.strip() for s in statuses.split(",") if s.strip()]
     try:
-        return await svc.get_deliveries_by_statuses(organization_id, status_list)
+        return await svc.get_deliveries_by_statuses(organization_id, status_list, days)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка получения заказов: {str(e)}")
 
@@ -1700,7 +1705,7 @@ async def get_products(
 
 @api_router.get("/data/stop-lists", tags=["data"])
 async def get_stop_lists(
-    organization_id: str,
+    organization_id: Optional[str] = None,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_role("viewer")),
 ):
@@ -1713,7 +1718,7 @@ async def get_stop_lists(
                sl.is_stopped, sl.updated_at
         FROM stop_lists sl
         LEFT JOIN products p ON sl.product_id = p.id
-        WHERE sl.organization_id = :org_id AND sl.is_stopped = TRUE
+        WHERE (:org_id IS NULL OR sl.organization_id = :org_id) AND sl.is_stopped = TRUE
         ORDER BY p.name
     """)
     
