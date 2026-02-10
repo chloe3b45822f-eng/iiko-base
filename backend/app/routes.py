@@ -549,7 +549,7 @@ async def get_order(
 async def iiko_webhook(request: Request, db: Session = Depends(get_db)):
     """Прием вебхуков от iiko"""
     # Проверка токена авторизации вебхука (защита от поддельных запросов)
-    auth_header = request.headers.get("Authorization", "")
+    auth_header = request.headers.get("Authorization") or request.headers.get("authToken") or ""
     stored_secrets = [
         s.webhook_secret
         for s in db.query(IikoSettings).filter(IikoSettings.webhook_secret.isnot(None)).all()
@@ -567,24 +567,53 @@ async def iiko_webhook(request: Request, db: Session = Depends(get_db)):
         logger.warning("Failed to parse webhook JSON: %s", e)
         payload = {"raw": body.decode("utf-8", errors="replace"), "parse_error": str(e)}
 
-    event_type = payload.get("eventType", "unknown")
+    event_type = payload.get("eventType") or payload.get("type") or "unknown"
+    logger.info("Получено событие от iiko webhook: %s", event_type)
+
     event = WebhookEvent(
         event_type=event_type,
-        payload=json.dumps(payload),
+        payload=json.dumps(payload, ensure_ascii=False),
         processed=False,
     )
     db.add(event)
     db.commit()
 
-    # Обработка событий по статусам заказов
+    # Обработка событий по статусам заказов (eventInfo format from iiko webhooks)
     if event_type in ("DeliveryOrderUpdate", "DeliveryOrderError"):
-        order_id = payload.get("eventInfo", {}).get("id")
-        new_status = payload.get("eventInfo", {}).get("status", "")
+        event_info = payload.get("eventInfo", {})
+        order_id = event_info.get("id")
+        new_status = event_info.get("status", "")
+        order_data = event_info
         if order_id:
             order = db.query(Order).filter(Order.iiko_order_id == order_id).first()
             if order:
                 order.status = new_status
-                db.commit()
+                order.order_data = json.dumps(order_data, ensure_ascii=False)
+                logger.info("Обновлен статус заказа в БД: %s -> %s", order_id, new_status)
+            else:
+                logger.info("Заказ %s не найден в БД, событие просто залогировано", order_id)
+        event.processed = True
+        db.commit()
+
+    # Обработка событий в формате order/data (OrderChanged, etc.)
+    elif event_type in (WEBHOOK_EVENT_ORDER_CHANGED, WEBHOOK_EVENT_DELIVERY_ORDER_CHANGED, WEBHOOK_EVENT_ORDER):
+        order_data = payload.get("order") or payload.get("data") or {}
+        order_id = order_data.get("id") or order_data.get("orderId")
+        order_status = order_data.get("status") or order_data.get("orderStatus")
+        if order_id:
+            existing_order = db.query(Order).filter(Order.iiko_order_id == order_id).first()
+            if existing_order:
+                existing_order.status = order_status or "unknown"
+                existing_order.order_data = json.dumps(order_data, ensure_ascii=False)
+                logger.info("Обновлен статус заказа в БД: %s -> %s", order_id, order_status)
+            else:
+                logger.info("Заказ %s не найден в БД, событие просто залогировано", order_id)
+        event.processed = True
+        db.commit()
+
+    # Обработка дополнительных типов событий
+    elif event_type in ("StopListUpdate", "PersonalShift", "ReserveUpdate", "ReserveError", "TableOrderError"):
+        logger.info("Обработано событие типа %s", event_type)
         event.processed = True
         db.commit()
 
@@ -816,6 +845,66 @@ async def get_iiko_stop_lists(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     return await svc.get_stop_lists(organization_id)
+
+
+@api_router.post("/iiko/cancel-causes", tags=["iiko"])
+async def get_iiko_cancel_causes(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить причины отмены заказов"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_cancel_causes([organization_id])
+
+
+@api_router.post("/iiko/removal-types", tags=["iiko"])
+async def get_iiko_removal_types(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить типы удалений позиций"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_removal_types([organization_id])
+
+
+@api_router.post("/iiko/tips-types", tags=["iiko"])
+async def get_iiko_tips_types(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить типы чаевых"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_tips_types([organization_id])
+
+
+@api_router.post("/iiko/delivery-restrictions", tags=["iiko"])
+async def get_iiko_delivery_restrictions(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить ограничения доставки"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_delivery_restrictions([organization_id])
 
 
 @api_router.post("/iiko/webhook-settings", tags=["iiko"])
@@ -1109,12 +1198,12 @@ async def admin_toggle_user_active(
 
 # ─── Webhook ────────────────────────────────────────────────────────────
 @api_router.post("/webhook/iiko", tags=["webhook"])
-async def iiko_webhook(
+async def iiko_webhook_legacy(
     request: Request,
     db: Session = Depends(get_db),
 ):
     """
-    Webhook endpoint для получения событий от iiko.
+    Webhook endpoint для получения событий от iiko (legacy).
     Принимает данные от iiko, проверяет секретный ключ и логирует события.
     """
     # Получаем секретный ключ из заголовков

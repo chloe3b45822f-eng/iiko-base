@@ -459,6 +459,66 @@ class IikoService:
             },
         )
 
+    async def get_cancel_causes(self, organization_ids: list) -> dict:
+        """Получить причины отмены заказов"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/cancel_causes",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_removal_types(self, organization_ids: list) -> dict:
+        """Получить типы удалений позиций из заказа"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/removal_types",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_tips_types(self, organization_ids: list) -> dict:
+        """Получить типы чаевых"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/tips_types",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_delivery_restrictions(self, organization_ids: list) -> dict:
+        """Получить ограничения доставки (зоны, минимальные суммы)"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/delivery_restrictions",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_streets_by_city(self, organization_id: str, city_id: str) -> dict:
+        """Получить список улиц по городу"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/streets/by_city",
+            json_data={"organizationId": organization_id, "cityId": city_id},
+        )
+
+    async def get_order_by_id(self, organization_ids: list, order_ids: list) -> dict:
+        """Получить заказ по ID (из iiko Cloud)"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/by_id",
+            json_data={"organizationIds": organization_ids, "orderIds": order_ids},
+        )
+
     async def get_deliveries_by_statuses(self, organization_id: str, statuses: list) -> dict:
         """Получить заказы по статусам"""
         if not self._token:
