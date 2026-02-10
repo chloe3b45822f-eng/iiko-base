@@ -13,7 +13,7 @@ from sqlalchemy import func as sa_func
 from typing import List as TypingList
 from database.connection import get_db
 from database.models import (
-    MenuItem, User, IikoSettings, Order, WebhookEvent, ApiLog,
+    MenuItem, User, IikoSettings, Order, WebhookEvent, ApiLog, BonusTransaction,
 )
 from app.schemas import (
     UserCreate, UserLogin, UserResponse, Token, RoleUpdate,
@@ -21,7 +21,7 @@ from app.schemas import (
     OrderResponse, OrderCreate, PasswordChange,
     WebhookEventResponse, ApiLogResponse,
     CustomerSearch, CustomerCreate, LoyaltyBalanceOperation,
-    AdminUserCreate,
+    AdminUserCreate, BonusTransactionResponse,
 )
 from app.auth import (
     get_password_hash, verify_password, create_access_token,
@@ -870,7 +870,7 @@ async def get_loyalty_programs(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     try:
-        return await svc.get_loyalty_programs([organization_id])
+        return await svc.get_loyalty_programs(organization_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка получения программ лояльности: {str(e)}")
 
@@ -945,6 +945,16 @@ async def get_loyalty_balance(
         raise HTTPException(status_code=502, detail=f"Ошибка получения баланса: {str(e)}")
 
 
+def _save_bonus_transaction(db: Session, data: LoyaltyBalanceOperation, operation_type: str, username: str):
+    tx = BonusTransaction(
+        organization_id=data.organization_id, customer_id=data.customer_id,
+        wallet_id=data.wallet_id, operation_type=operation_type, amount=data.amount,
+        comment=data.comment or "", performed_by=username,
+    )
+    db.add(tx)
+    db.commit()
+
+
 @api_router.post("/iiko/loyalty/topup", tags=["loyalty"])
 async def topup_loyalty(
     data: LoyaltyBalanceOperation,
@@ -958,10 +968,12 @@ async def topup_loyalty(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     try:
-        return await svc.topup_loyalty_balance(
+        result = await svc.topup_loyalty_balance(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
+        _save_bonus_transaction(db, data, "topup", _current_user.username)
+        return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка пополнения баланса: {str(e)}")
 
@@ -979,10 +991,12 @@ async def withdraw_loyalty(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     try:
-        return await svc.withdraw_loyalty_balance(
+        result = await svc.withdraw_loyalty_balance(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
+        _save_bonus_transaction(db, data, "withdraw", _current_user.username)
+        return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка списания бонусов: {str(e)}")
 
@@ -1000,12 +1014,36 @@ async def hold_loyalty(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     try:
-        return await svc.hold_loyalty_balance(
+        result = await svc.hold_loyalty_balance(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
+        _save_bonus_transaction(db, data, "hold", _current_user.username)
+        return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка холдирования бонусов: {str(e)}")
+
+
+@api_router.get("/iiko/loyalty/transactions", tags=["loyalty"])
+async def get_bonus_transactions(
+    setting_id: int,
+    organization_id: str,
+    customer_id: str = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить историю операций с бонусами"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    query = db.query(BonusTransaction).filter(
+        BonusTransaction.organization_id == organization_id,
+    )
+    if customer_id:
+        query = query.filter(BonusTransaction.customer_id == customer_id)
+    transactions = query.order_by(BonusTransaction.created_at.desc()).limit(min(limit, 200)).all()
+    return [BonusTransactionResponse.model_validate(t).model_dump() for t in transactions]
 
 
 # ─── Admin User Management ──────────────────────────────────────────────
