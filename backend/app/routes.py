@@ -1275,3 +1275,462 @@ async def iiko_webhook_legacy(
     
     # Возвращаем успешный ответ
     return {"status": "ok", "message": "Событие получено и обработано"}
+
+
+# ─── Synchronization Endpoints ──────────────────────────────────────────
+@api_router.post("/sync/full", tags=["sync"])
+async def sync_full(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("manager")),
+):
+    """Полная синхронизация всех данных из iiko"""
+    from app.iiko_sync import IikoSyncService
+    
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    sync_service = IikoSyncService(db, setting)
+    result = await sync_service.sync_all(setting.organization_id)
+    
+    return result
+
+
+@api_router.post("/sync/menu", tags=["sync"])
+async def sync_menu(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("manager")),
+):
+    """Синхронизация меню (категории, товары, модификаторы)"""
+    from app.iiko_sync import IikoSyncService
+    
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    sync_service = IikoSyncService(db, setting)
+    
+    results = {}
+    results['categories'] = await sync_service.sync_categories(setting.organization_id)
+    results['products'] = await sync_service.sync_products(setting.organization_id)
+    results['modifiers'] = await sync_service.sync_modifiers(setting.organization_id)
+    
+    return {
+        'status': 'success',
+        'results': results
+    }
+
+
+@api_router.post("/sync/stoplist", tags=["sync"])
+async def sync_stoplist(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Синхронизация стоп-листов"""
+    from app.iiko_sync import IikoSyncService
+    
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    sync_service = IikoSyncService(db, setting)
+    result = await sync_service.sync_stop_lists(setting.organization_id)
+    
+    return result
+
+
+@api_router.post("/sync/terminals", tags=["sync"])
+async def sync_terminals(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("manager")),
+):
+    """Синхронизация терминальных групп"""
+    from app.iiko_sync import IikoSyncService
+    
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    sync_service = IikoSyncService(db, setting)
+    result = await sync_service.sync_terminal_groups([setting.organization_id])
+    
+    return result
+
+
+@api_router.post("/sync/payments", tags=["sync"])
+async def sync_payments(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("manager")),
+):
+    """Синхронизация типов оплат"""
+    from app.iiko_sync import IikoSyncService
+    
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    sync_service = IikoSyncService(db, setting)
+    result = await sync_service.sync_payment_types([setting.organization_id])
+    
+    return result
+
+
+@api_router.get("/sync/history", tags=["sync"])
+async def get_sync_history(
+    organization_id: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Получить историю синхронизаций"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT id, organization_id, sync_type, status, items_synced,
+               error_message, duration_ms, started_at, completed_at
+        FROM sync_history
+        WHERE (:org_id IS NULL OR organization_id = :org_id)
+        ORDER BY started_at DESC
+        LIMIT :limit
+    """)
+    
+    result = db.execute(query, {'org_id': organization_id, 'limit': limit})
+    rows = result.fetchall()
+    
+    return {
+        'history': [
+            {
+                'id': row[0],
+                'organization_id': row[1],
+                'sync_type': row[2],
+                'status': row[3],
+                'items_synced': row[4],
+                'error_message': row[5],
+                'duration_ms': row[6],
+                'started_at': row[7].isoformat() if row[7] else None,
+                'completed_at': row[8].isoformat() if row[8] else None,
+            }
+            for row in rows
+        ]
+    }
+
+
+# ─── Webhook Management Endpoints ────────────────────────────────────────
+@api_router.post("/webhooks/register", tags=["webhooks"])
+async def register_webhook(
+    setting_id: int,
+    webhook_url: str,
+    auth_token: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Регистрация вебхука в iiko Cloud API"""
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    # Generate auth token if not provided
+    if not auth_token:
+        auth_token = secrets.token_urlsafe(32)
+    
+    # Register webhook with iiko
+    svc = IikoService(db, setting)
+    try:
+        result = await svc.register_webhook(
+            organization_id=setting.organization_id,
+            webhook_url=webhook_url,
+            auth_token=auth_token
+        )
+        
+        # Save webhook config to database
+        from sqlalchemy import text
+        db.execute(
+            text("""
+                INSERT INTO webhook_configs (
+                    organization_id, webhook_url, auth_token,
+                    enable_delivery_orders, enable_stoplist_updates,
+                    track_order_statuses, track_item_statuses, track_errors
+                )
+                VALUES (
+                    :org_id, :url, :token,
+                    TRUE, TRUE,
+                    ARRAY['Unconfirmed', 'WaitCooking', 'ReadyForCooking', 'CookingStarted', 
+                          'CookingCompleted', 'Waiting', 'OnWay', 'Delivered', 'Closed', 'Cancelled'],
+                    ARRAY['Added', 'PrintedNotCooking', 'CookingStarted', 'CookingCompleted', 'Served'],
+                    TRUE
+                )
+                ON CONFLICT (organization_id)
+                DO UPDATE SET
+                    webhook_url = :url,
+                    auth_token = :token,
+                    updated_at = CURRENT_TIMESTAMP
+            """),
+            {
+                'org_id': setting.organization_id,
+                'url': webhook_url,
+                'token': auth_token
+            }
+        )
+        
+        # Also save to iiko_settings
+        setting.webhook_url = webhook_url
+        setting.webhook_secret = auth_token
+        
+        db.commit()
+        
+        return {
+            'status': 'success',
+            'webhook_url': webhook_url,
+            'auth_token': auth_token,
+            'iiko_response': result
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to register webhook: {e}")
+        raise HTTPException(status_code=500, detail=f"Не удалось зарегистрировать вебхук: {str(e)}")
+
+
+@api_router.get("/webhooks/settings", tags=["webhooks"])
+async def get_webhook_settings(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("manager")),
+):
+    """Получить текущие настройки вебхука из iiko"""
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.organization_id:
+        raise HTTPException(status_code=400, detail="Organization ID не задан в настройках")
+    
+    svc = IikoService(db, setting)
+    try:
+        result = await svc.get_webhook_settings(setting.organization_id)
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get webhook settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Не удалось получить настройки вебхука: {str(e)}")
+
+
+@api_router.post("/webhooks/test", tags=["webhooks"])
+async def test_webhook(
+    setting_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("admin")),
+):
+    """Тестирование вебхука"""
+    setting = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Настройка iiko не найдена")
+    
+    if not setting.webhook_url:
+        raise HTTPException(status_code=400, detail="Webhook URL не задан в настройках")
+    
+    # Send test webhook event
+    test_payload = {
+        "eventType": "TestWebhook",
+        "eventTime": datetime.utcnow().isoformat(),
+        "organizationId": setting.organization_id,
+        "message": "This is a test webhook from iiko-base admin panel"
+    }
+    
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                setting.webhook_url,
+                json=test_payload,
+                headers={
+                    "Authorization": setting.webhook_secret or "",
+                    "Content-Type": "application/json"
+                }
+            )
+        
+        # Update test results in webhook_configs
+        from sqlalchemy import text
+        db.execute(
+            text("""
+                UPDATE webhook_configs
+                SET last_test_at = CURRENT_TIMESTAMP,
+                    last_test_status = :status,
+                    last_test_response = :response
+                WHERE organization_id = :org_id
+            """),
+            {
+                'status': f"{response.status_code}",
+                'response': response.text[:500],
+                'org_id': setting.organization_id
+            }
+        )
+        db.commit()
+        
+        return {
+            'status': 'success',
+            'test_payload': test_payload,
+            'response_status': response.status_code,
+            'response_body': response.text
+        }
+        
+    except Exception as e:
+        logger.error(f"Webhook test failed: {e}")
+        return {
+            'status': 'error',
+            'error': str(e)
+        }
+
+
+# ─── Data Retrieval Endpoints ───────────────────────────────────────────
+@api_router.get("/data/categories", tags=["data"])
+async def get_categories(
+    organization_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Получить категории меню"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT id, iiko_id, parent_id, name, description, sort_order,
+               is_active, is_visible, image_url, synced_at
+        FROM categories
+        WHERE (:org_id IS NULL OR id IN (
+            SELECT DISTINCT category_id FROM products
+            WHERE category_id IS NOT NULL
+        ))
+        ORDER BY sort_order, name
+    """)
+    
+    result = db.execute(query, {'org_id': organization_id})
+    rows = result.fetchall()
+    
+    return {
+        'categories': [
+            {
+                'id': row[0],
+                'iiko_id': row[1],
+                'parent_id': row[2],
+                'name': row[3],
+                'description': row[4],
+                'sort_order': row[5],
+                'is_active': row[6],
+                'is_visible': row[7],
+                'image_url': row[8],
+                'synced_at': row[9].isoformat() if row[9] else None,
+            }
+            for row in rows
+        ]
+    }
+
+
+@api_router.get("/data/products", tags=["data"])
+async def get_products(
+    category_id: Optional[str] = None,
+    is_available: Optional[bool] = None,
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Получить товары"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT id, iiko_id, category_id, name, description, code, price,
+               is_available, is_visible, weight, synced_at
+        FROM products
+        WHERE (:category_id IS NULL OR category_id = :category_id)
+          AND (:is_available IS NULL OR is_available = :is_available)
+        ORDER BY name
+        LIMIT :limit OFFSET :offset
+    """)
+    
+    result = db.execute(query, {
+        'category_id': category_id,
+        'is_available': is_available,
+        'limit': limit,
+        'offset': offset
+    })
+    rows = result.fetchall()
+    
+    return {
+        'products': [
+            {
+                'id': row[0],
+                'iiko_id': row[1],
+                'category_id': row[2],
+                'name': row[3],
+                'description': row[4],
+                'code': row[5],
+                'price': row[6],
+                'is_available': row[7],
+                'is_visible': row[8],
+                'weight': row[9],
+                'synced_at': row[10].isoformat() if row[10] else None,
+            }
+            for row in rows
+        ]
+    }
+
+
+@api_router.get("/data/stop-lists", tags=["data"])
+async def get_stop_lists(
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("viewer")),
+):
+    """Получить текущие стоп-листы"""
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT sl.id, sl.organization_id, sl.terminal_group_id,
+               sl.product_id, p.name as product_name, sl.balance,
+               sl.is_stopped, sl.updated_at
+        FROM stop_lists sl
+        LEFT JOIN products p ON sl.product_id = p.id
+        WHERE sl.organization_id = :org_id AND sl.is_stopped = TRUE
+        ORDER BY p.name
+    """)
+    
+    result = db.execute(query, {'org_id': organization_id})
+    rows = result.fetchall()
+    
+    return {
+        'stop_lists': [
+            {
+                'id': row[0],
+                'organization_id': row[1],
+                'terminal_group_id': row[2],
+                'product_id': row[3],
+                'product_name': row[4],
+                'balance': row[5],
+                'is_stopped': row[6],
+                'updated_at': row[7].isoformat() if row[7] else None,
+            }
+            for row in rows
+        ]
+    }
