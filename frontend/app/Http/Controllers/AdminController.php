@@ -491,31 +491,31 @@ class AdminController extends Controller
     public function apiSyncFull(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/sync/full", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/sync/full?setting_id={$settingId}");
     }
 
     public function apiSyncMenuEndpoint(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/sync/menu", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/sync/menu?setting_id={$settingId}");
     }
 
     public function apiSyncStoplist(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/sync/stoplist", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/sync/stoplist?setting_id={$settingId}");
     }
 
     public function apiSyncTerminals(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/sync/terminals", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/sync/terminals?setting_id={$settingId}");
     }
 
     public function apiSyncPayments(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/sync/payments", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/sync/payments?setting_id={$settingId}");
     }
 
     public function apiSyncHistory(Request $request): JsonResponse
@@ -536,14 +536,11 @@ class AdminController extends Controller
         $settingId = $request->input('setting_id');
         $webhookUrl = $request->input('webhook_url');
         $authToken = $request->input('auth_token');
-        $body = [
-            'setting_id' => $settingId,
-            'webhook_url' => $webhookUrl
-        ];
+        $path = "/webhooks/register?setting_id={$settingId}&webhook_url=" . urlencode($webhookUrl);
         if ($authToken) {
-            $body['auth_token'] = $authToken;
+            $path .= "&auth_token=" . urlencode($authToken);
         }
-        return $this->proxyPost($request, "/webhooks/register", $body);
+        return $this->proxyPost($request, $path);
     }
 
     public function apiWebhookSettingsGet(Request $request): JsonResponse
@@ -555,7 +552,7 @@ class AdminController extends Controller
     public function apiWebhookTest(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');
-        return $this->proxyPost($request, "/webhooks/test", ['setting_id' => $settingId]);
+        return $this->proxyPost($request, "/webhooks/test?setting_id={$settingId}");
     }
 
     // ─── Data Retrieval Endpoints ────────────────────────────────────────────────
