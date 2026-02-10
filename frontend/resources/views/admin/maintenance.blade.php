@@ -2037,7 +2037,7 @@ async function loadSyncedData(type) {
         if (type === 'categories') {
             const categories = data.categories || [];
             if (categories.length === 0) {
-                html += '<span class="badge badge-muted">Нет данных</span>';
+                html += '<div class="alert alert-warning">⚠️ Нет данных. Сначала выполните <strong>Полную синхронизацию</strong> на вкладке "Синхронизация".</div>';
             } else {
                 html += `<div style="margin-bottom:12px;font-weight:600;">Категорий: ${categories.length}</div>`;
                 html += '<div class="table-wrap"><table><thead><tr><th>Название</th><th>Родительская</th><th>Активна</th><th>Видима</th><th>Синхронизирована</th></tr></thead><tbody>';
@@ -2055,7 +2055,7 @@ async function loadSyncedData(type) {
         } else if (type === 'products') {
             const products = data.products || [];
             if (products.length === 0) {
-                html += '<span class="badge badge-muted">Нет данных</span>';
+                html += '<div class="alert alert-warning">⚠️ Нет данных. Сначала выполните <strong>Полную синхронизацию</strong> на вкладке "Синхронизация".</div>';
             } else {
                 html += `<div style="margin-bottom:12px;font-weight:600;">Товаров: ${products.length}</div>`;
                 html += '<div class="table-wrap"><table><thead><tr><th>Название</th><th>Код</th><th>Цена</th><th>Доступен</th><th>Виден</th><th>Вес</th></tr></thead><tbody>';
