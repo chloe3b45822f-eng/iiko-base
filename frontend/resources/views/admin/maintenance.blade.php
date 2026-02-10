@@ -1597,7 +1597,7 @@ async function loadIikoDeliveries() {
         const ordersByOrg = data.ordersByOrganizations || [];
         let html = '<div class="data-section">';
         
-        const daysLabel = days == 1 ? 'последний день' : `последние ${days} ${days > 4 ? 'дней' : 'дня'}`;
+        const daysLabel = days === 1 ? 'последний день' : `последние ${days} ${(days >= 2 && days <= 4) ? 'дня' : 'дней'}`;
 
         if (ordersByOrg.length === 0) {
             html += `<span class="badge badge-muted">Нет заказов за ${daysLabel}</span>`;
