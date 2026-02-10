@@ -779,7 +779,11 @@ function switchTab(name, evt) {
 // ─── HTTP Helpers ─────────────────────────────────────────
 async function apiGet(url) {
     const res = await fetch(url, { headers: { 'X-CSRF-TOKEN': csrfToken } });
-    return { status: res.status, data: await res.json() };
+    try {
+        return { status: res.status, data: await res.json() };
+    } catch (e) {
+        return { status: res.status, data: { detail: 'Ошибка разбора ответа сервера' } };
+    }
 }
 
 async function apiPost(url, body = {}) {
@@ -792,7 +796,11 @@ async function apiPost(url, body = {}) {
         },
         body: JSON.stringify(body),
     });
-    return { status: res.status, data: await res.json() };
+    try {
+        return { status: res.status, data: await res.json() };
+    } catch (e) {
+        return { status: res.status, data: { detail: 'Ошибка разбора ответа сервера' } };
+    }
 }
 
 async function apiPut(url, body = {}) {
@@ -805,7 +813,11 @@ async function apiPut(url, body = {}) {
         },
         body: JSON.stringify(body),
     });
-    return { status: res.status, data: await res.json() };
+    try {
+        return { status: res.status, data: await res.json() };
+    } catch (e) {
+        return { status: res.status, data: { detail: 'Ошибка разбора ответа сервера' } };
+    }
 }
 
 async function apiDelete(url) {
@@ -817,7 +829,11 @@ async function apiDelete(url) {
             'X-Requested-With': 'XMLHttpRequest',
         },
     });
-    return { status: res.status, data: await res.json() };
+    try {
+        return { status: res.status, data: await res.json() };
+    } catch (e) {
+        return { status: res.status, data: { detail: 'Ошибка разбора ответа сервера' } };
+    }
 }
 
 // ─── Format helpers ──────────────────────────────────────
