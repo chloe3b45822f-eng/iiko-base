@@ -199,8 +199,8 @@
         <div class="card">
             <div class="card-header">
                 <div>
-                    <div class="card-title">Настройка вебхука</div>
-                    <div class="card-subtitle">Введите домен — URL и токен создадутся автоматически</div>
+                    <div class="card-title">🔗 Настройка вебхука</div>
+                    <div class="card-subtitle">Регистрация вебхука в iiko Cloud</div>
                 </div>
             </div>
             <div class="settings-form">
@@ -217,15 +217,33 @@
                         Введите только домен (например: vezuroll.ru). URL вебхука и токен авторизации будут сгенерированы автоматически.
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="registerWebhook()">🔗 Привязать вебхук</button>
+                <div class="form-group">
+                    <label class="form-label">Или введите полный URL вебхука</label>
+                    <input type="text" class="form-input" id="webhook-url-input" placeholder="https://example.com/api/v1/webhooks/iiko">
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                        Полный URL для приема вебхуков от iiko
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Токен авторизации (опционально)</label>
+                    <input type="text" class="form-input" id="webhook-token-input" placeholder="Будет сгенерирован автоматически">
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                        Оставьте пустым для автоматической генерации
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-primary" onclick="registerWebhook()">🔗 Зарегистрировать вебхук</button>
+                    <button class="btn" onclick="testWebhook()">🧪 Тестировать</button>
+                    <button class="btn" onclick="getWebhookSettings()">📋 Получить настройки</button>
+                </div>
                 <div id="webhook-result" style="margin-top:12px;display:none;">
                     <div class="webhook-result">
                         <div style="margin-bottom:8px;">
-                            <span class="form-label">URL вебхука (создан автоматически):</span>
+                            <span class="form-label">URL вебхука:</span>
                         </div>
                         <div class="mono" id="webhook-generated-url" style="color:var(--accent);word-break:break-all;margin-bottom:10px;"></div>
                         <div style="margin-bottom:8px;">
-                            <span class="form-label">Токен авторизации вебхука (создан автоматически):</span>
+                            <span class="form-label">Токен авторизации:</span>
                         </div>
                         <div class="mono" id="webhook-auth-token" style="color:var(--accent-2);word-break:break-all;"></div>
                         <div style="margin-top:8px;">
@@ -238,12 +256,25 @@
         </div>
 
         <div>
-            {{-- Current Webhook Settings --}}
+            {{-- Current Webhook Settings from iiko --}}
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Текущие настройки вебхука</div>
-                        <div class="card-subtitle">Сохраненные URL и токен для выбранной интеграции</div>
+                        <div class="card-title">⚙️ Настройки вебхука в iiko</div>
+                        <div class="card-subtitle">Текущая конфигурация вебхука в iiko Cloud</div>
+                    </div>
+                </div>
+                <div id="iiko-webhook-settings">
+                    <span class="badge badge-muted">Нажмите «Получить настройки» для загрузки</span>
+                </div>
+            </div>
+
+            {{-- Local Webhook Configuration --}}
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">💾 Локальные настройки</div>
+                        <div class="card-subtitle">Сохраненные URL и токен</div>
                     </div>
                 </div>
                 <div id="current-webhook-info">
@@ -255,7 +286,7 @@
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Входящие события</div>
+                        <div class="card-title">📨 Входящие события</div>
                         <div class="card-subtitle">Последние вебхук-события от iiko</div>
                     </div>
                     <button class="btn btn-sm" onclick="loadWebhookEvents()">🔄</button>
@@ -266,15 +297,54 @@
             </div>
         </div>
     </div>
+
+    {{-- Webhook Configuration Guide --}}
+    <div class="card section-gap">
+        <div class="card-header">
+            <div>
+                <div class="card-title">📖 Руководство по настройке вебхуков</div>
+                <div class="card-subtitle">Пошаговая инструкция</div>
+            </div>
+        </div>
+        <div style="padding:0 16px 16px;">
+            <div style="margin-bottom:12px;">
+                <strong>Что такое вебхуки?</strong><br>
+                <span style="font-size:13px;color:var(--muted);">
+                    Вебхуки позволяют получать уведомления от iiko о событиях в реальном времени:
+                    изменения статусов заказов, обновления стоп-листов, и другие события.
+                </span>
+            </div>
+            <div style="margin-bottom:12px;">
+                <strong>Шаги настройки:</strong>
+                <ol style="font-size:13px;color:var(--muted);margin-left:20px;">
+                    <li>Выберите настройку iiko из списка</li>
+                    <li>Введите домен вашего сервера (например: example.com)</li>
+                    <li>Нажмите «Зарегистрировать вебхук»</li>
+                    <li>Система автоматически сгенерирует URL и токен авторизации</li>
+                    <li>Проверьте работу вебхука кнопкой «Тестировать»</li>
+                </ol>
+            </div>
+            <div style="margin-bottom:12px;">
+                <strong>Отслеживаемые события:</strong>
+                <ul style="font-size:13px;color:var(--muted);margin-left:20px;">
+                    <li>Изменения статусов заказов доставки</li>
+                    <li>Обновления стоп-листов</li>
+                    <li>Ошибки обработки заказов</li>
+                    <li>Изменения в персональных сменах (опционально)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- ═══ TAB: iiko Data ═══ --}}
 <div class="tab-content" id="tab-data">
+    {{-- Synchronization Controls --}}
     <div class="card section-gap">
         <div class="card-header">
             <div>
-                <div class="card-title">Данные из iiko</div>
-                <div class="card-subtitle">Просматривайте доступные данные интеграции</div>
+                <div class="card-title">🔄 Синхронизация данных</div>
+                <div class="card-subtitle">Синхронизируйте меню, стоп-листы и справочники из iiko в локальную БД</div>
             </div>
         </div>
 
@@ -294,6 +364,76 @@
             <div class="form-group" style="display:flex;align-items:flex-end;">
                 <button class="btn btn-primary" onclick="loadDataOrganizations()">📡 Загрузить организации</button>
             </div>
+        </div>
+
+        <div class="data-section">
+            <div style="font-weight:600;margin-bottom:12px;">Управление синхронизацией</div>
+            <div class="grid-4" style="gap:8px;">
+                <button class="btn" onclick="syncData('full')" id="btn-sync-full">
+                    🔄 Полная синхронизация
+                </button>
+                <button class="btn" onclick="syncData('menu')" id="btn-sync-menu">
+                    📋 Меню
+                </button>
+                <button class="btn" onclick="syncData('stoplist')" id="btn-sync-stoplist">
+                    🚫 Стоп-листы
+                </button>
+                <button class="btn" onclick="syncData('terminals')" id="btn-sync-terminals">
+                    🏪 Терминалы
+                </button>
+                <button class="btn" onclick="syncData('payments')" id="btn-sync-payments">
+                    💳 Типы оплат
+                </button>
+            </div>
+            <div id="sync-progress" style="margin-top:12px;display:none;">
+                <div style="padding:12px;background:rgba(99,102,241,0.1);border-radius:8px;border:1px solid var(--accent);">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span class="spinner" style="width:16px;height:16px;"></span>
+                        <span id="sync-status-text">Синхронизация...</span>
+                    </div>
+                </div>
+            </div>
+            <div id="sync-result" style="margin-top:12px;"></div>
+        </div>
+    </div>
+
+    {{-- Sync History --}}
+    <div class="card section-gap">
+        <div class="card-header">
+            <div>
+                <div class="card-title">📊 История синхронизаций</div>
+                <div class="card-subtitle">Последние операции синхронизации</div>
+            </div>
+            <button class="btn btn-sm" onclick="loadSyncHistory()">🔄 Обновить</button>
+        </div>
+        <div id="sync-history-list">
+            <span class="badge badge-muted">Нажмите «Обновить» для загрузки истории</span>
+        </div>
+    </div>
+
+    {{-- Synced Data Viewing --}}
+    <div class="card section-gap">
+        <div class="card-header">
+            <div>
+                <div class="card-title">📦 Синхронизированные данные</div>
+                <div class="card-subtitle">Просмотр данных в локальной БД</div>
+            </div>
+        </div>
+
+        <div class="grid-3" style="gap:8px;margin-bottom:16px;">
+            <button class="btn btn-sm" onclick="loadSyncedData('categories')">
+                📂 Категории
+            </button>
+            <button class="btn btn-sm" onclick="loadSyncedData('products')">
+                🍕 Товары
+            </button>
+            <button class="btn btn-sm" onclick="loadSyncedData('stop-lists')">
+                🚫 Стоп-листы
+            </button>
+        </div>
+
+        <div id="synced-data-view">
+            <span class="badge badge-muted">Выберите тип данных для просмотра</span>
         </div>
     </div>
 
@@ -1053,6 +1193,8 @@ async function testConnection() {
 async function registerWebhook() {
     const settingId = document.getElementById('webhook-setting-select').value;
     const domain = document.getElementById('webhook-domain-input').value.trim();
+    const fullUrl = document.getElementById('webhook-url-input').value.trim();
+    const authToken = document.getElementById('webhook-token-input').value.trim();
     const errorEl = document.getElementById('webhook-error');
     const resultEl = document.getElementById('webhook-result');
 
@@ -1060,8 +1202,16 @@ async function registerWebhook() {
         errorEl.innerHTML = '<div class="alert alert-warning">⚠️ Выберите настройку iiko</div>';
         return;
     }
-    if (!domain) {
-        errorEl.innerHTML = '<div class="alert alert-warning">⚠️ Введите домен вашего сервера (например: vezuroll.ru)</div>';
+
+    let webhookUrl = fullUrl;
+    if (!webhookUrl && domain) {
+        // Generate URL from domain
+        const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        webhookUrl = `https://${cleanDomain}/api/v1/webhooks/iiko`;
+    }
+
+    if (!webhookUrl) {
+        errorEl.innerHTML = '<div class="alert alert-warning">⚠️ Введите домен или полный URL вебхука</div>';
         return;
     }
 
@@ -1069,10 +1219,15 @@ async function registerWebhook() {
     resultEl.style.display = 'none';
 
     try {
-        const result = await apiPost('/admin/api/iiko-register-webhook', {
-            setting_id: settingId,
-            domain: domain,
-        });
+        const payload = {
+            setting_id: parseInt(settingId),
+            webhook_url: webhookUrl
+        };
+        if (authToken) {
+            payload.auth_token = authToken;
+        }
+
+        const result = await apiPost('/admin/api/webhooks/register', payload);
 
         if (result.status >= 400) {
             errorEl.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
@@ -1081,6 +1236,9 @@ async function registerWebhook() {
             resultEl.style.display = 'block';
             document.getElementById('webhook-generated-url').textContent = result.data.webhook_url || '—';
             document.getElementById('webhook-auth-token').textContent = result.data.auth_token || '—';
+            
+            // Refresh current webhook info
+            onWebhookSettingChange();
         }
     } catch (err) {
         errorEl.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
@@ -1711,6 +1869,261 @@ async function createOrUpdateCustomer() {
         if (result.status >= 400) { container.innerHTML = '<div class="alert alert-danger">⚠️ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>'; return; }
         container.innerHTML = '<div class="alert alert-success">✅ Гость сохранен. ID: ' + escapeHtml(result.data.id || JSON.stringify(result.data)) + '</div>';
     } catch (err) { container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>'; }
+}
+
+// ─── Synchronization Functions ──────────────────────────
+async function syncData(type) {
+    const settingId = document.getElementById('data-setting-select').value;
+    if (!settingId) {
+        alert('Выберите настройку iiko');
+        return;
+    }
+    
+    const progressDiv = document.getElementById('sync-progress');
+    const resultDiv = document.getElementById('sync-result');
+    const statusText = document.getElementById('sync-status-text');
+    
+    progressDiv.style.display = 'block';
+    resultDiv.innerHTML = '';
+    statusText.textContent = `Синхронизация ${type}...`;
+    
+    // Disable all sync buttons
+    const buttons = ['btn-sync-full', 'btn-sync-menu', 'btn-sync-stoplist', 'btn-sync-terminals', 'btn-sync-payments'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = true;
+    });
+    
+    try {
+        const result = await apiPost(`/admin/api/sync/${type}`, { setting_id: parseInt(settingId) });
+        
+        if (result.status >= 400) {
+            resultDiv.innerHTML = '<div class="alert alert-danger">❌ Ошибка: ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+        } else {
+            const data = result.data;
+            let html = '<div class="alert alert-success">';
+            html += '<div style="font-weight:600;margin-bottom:8px;">✅ Синхронизация завершена</div>';
+            
+            if (data.results) {
+                html += '<div style="font-size:13px;">';
+                Object.keys(data.results).forEach(key => {
+                    const r = data.results[key];
+                    const synced = r.synced || 0;
+                    const duration = r.duration_ms || 0;
+                    html += `<div>• ${key}: ${synced} записей (${duration}мс)</div>`;
+                });
+                html += '</div>';
+            }
+            
+            if (data.duration_ms) {
+                html += `<div style="margin-top:8px;font-size:12px;color:var(--muted);">Общее время: ${data.duration_ms}мс</div>`;
+            }
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+            
+            // Reload sync history
+            loadSyncHistory();
+        }
+    } catch (err) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+    } finally {
+        progressDiv.style.display = 'none';
+        // Re-enable sync buttons
+        buttons.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = false;
+        });
+    }
+}
+
+async function loadSyncHistory() {
+    const container = document.getElementById('sync-history-list');
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Загрузка...</div>';
+    
+    try {
+        const orgId = document.getElementById('data-org-select').value || null;
+        let url = '/admin/api/sync/history?limit=20';
+        if (orgId) url += `&organization_id=${encodeURIComponent(orgId)}`;
+        
+        const result = await apiGet(url);
+        
+        if (result.status >= 400) {
+            container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+            return;
+        }
+        
+        const history = result.data.history || [];
+        
+        if (history.length === 0) {
+            container.innerHTML = '<span class="badge badge-muted">История синхронизаций пуста</span>';
+            return;
+        }
+        
+        let html = '<div class="table-wrap"><table><thead><tr>';
+        html += '<th>Тип</th><th>Статус</th><th>Записей</th><th>Длительность</th><th>Дата</th><th>Ошибка</th>';
+        html += '</tr></thead><tbody>';
+        
+        history.forEach(h => {
+            const statusBadge = h.status === 'success' ? 'badge-success' : (h.status === 'failed' ? 'badge-danger' : 'badge-warning');
+            html += '<tr>';
+            html += `<td><strong>${escapeHtml(h.sync_type)}</strong></td>`;
+            html += `<td><span class="badge ${statusBadge}">${escapeHtml(h.status)}</span></td>`;
+            html += `<td>${h.items_synced || 0}</td>`;
+            html += `<td>${h.duration_ms || 0}мс</td>`;
+            html += `<td style="font-size:12px;">${h.completed_at ? new Date(h.completed_at).toLocaleString('ru-RU') : '—'}</td>`;
+            html += `<td style="font-size:11px;color:var(--danger);">${h.error_message ? escapeHtml(h.error_message.substring(0, 50)) : '—'}</td>`;
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+    }
+}
+
+async function loadSyncedData(type) {
+    const container = document.getElementById('synced-data-view');
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Загрузка...</div>';
+    
+    try {
+        const orgId = document.getElementById('data-org-select').value || null;
+        let url = `/admin/api/data/${type}`;
+        if (orgId) url += `?organization_id=${encodeURIComponent(orgId)}`;
+        
+        const result = await apiGet(url);
+        
+        if (result.status >= 400) {
+            container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+            return;
+        }
+        
+        const data = result.data;
+        let html = '<div class="data-section">';
+        
+        if (type === 'categories') {
+            const categories = data.categories || [];
+            if (categories.length === 0) {
+                html += '<span class="badge badge-muted">Нет данных</span>';
+            } else {
+                html += `<div style="margin-bottom:12px;font-weight:600;">Категорий: ${categories.length}</div>`;
+                html += '<div class="table-wrap"><table><thead><tr><th>Название</th><th>Родительская</th><th>Активна</th><th>Видима</th><th>Синхронизирована</th></tr></thead><tbody>';
+                categories.forEach(c => {
+                    html += '<tr>';
+                    html += `<td><strong>📂 ${escapeHtml(c.name)}</strong></td>`;
+                    html += `<td style="font-size:11px;">${c.parent_id ? escapeHtml(c.parent_id.substring(0, 8)) : '—'}</td>`;
+                    html += `<td><span class="badge ${c.is_active ? 'badge-success' : 'badge-muted'}">${c.is_active ? 'Да' : 'Нет'}</span></td>`;
+                    html += `<td><span class="badge ${c.is_visible ? 'badge-success' : 'badge-muted'}">${c.is_visible ? 'Да' : 'Нет'}</span></td>`;
+                    html += `<td style="font-size:11px;">${c.synced_at ? new Date(c.synced_at).toLocaleString('ru-RU') : '—'}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+        } else if (type === 'products') {
+            const products = data.products || [];
+            if (products.length === 0) {
+                html += '<span class="badge badge-muted">Нет данных</span>';
+            } else {
+                html += `<div style="margin-bottom:12px;font-weight:600;">Товаров: ${products.length}</div>`;
+                html += '<div class="table-wrap"><table><thead><tr><th>Название</th><th>Код</th><th>Цена</th><th>Доступен</th><th>Виден</th><th>Вес</th></tr></thead><tbody>';
+                products.forEach(p => {
+                    html += '<tr>';
+                    html += `<td><strong>🍕 ${escapeHtml(p.name)}</strong></td>`;
+                    html += `<td class="mono" style="font-size:11px;">${escapeHtml(p.code || '—')}</td>`;
+                    html += `<td style="font-weight:600;">${(p.price / 100).toFixed(2)} ₽</td>`;
+                    html += `<td><span class="badge ${p.is_available ? 'badge-success' : 'badge-danger'}">${p.is_available ? 'Да' : 'Нет'}</span></td>`;
+                    html += `<td><span class="badge ${p.is_visible ? 'badge-success' : 'badge-muted'}">${p.is_visible ? 'Да' : 'Нет'}</span></td>`;
+                    html += `<td>${p.weight ? p.weight + 'г' : '—'}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+        } else if (type === 'stop-lists') {
+            const stopLists = data.stop_lists || [];
+            if (stopLists.length === 0) {
+                html += '<span class="badge badge-success">✅ Стоп-лист пуст</span>';
+            } else {
+                html += `<div style="margin-bottom:12px;font-weight:600;">Позиций в стоп-листе: ${stopLists.length}</div>`;
+                html += '<div class="table-wrap"><table><thead><tr><th>Товар</th><th>Терминал</th><th>Остаток</th><th>Обновлено</th></tr></thead><tbody>';
+                stopLists.forEach(s => {
+                    html += '<tr>';
+                    html += `<td><strong>🚫 ${escapeHtml(s.product_name || s.product_id)}</strong></td>`;
+                    html += `<td style="font-size:11px;">${s.terminal_group_id ? escapeHtml(s.terminal_group_id.substring(0, 8)) : 'Все'}</td>`;
+                    html += `<td>${s.balance || 0}</td>`;
+                    html += `<td style="font-size:11px;">${s.updated_at ? new Date(s.updated_at).toLocaleString('ru-RU') : '—'}</td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+    }
+}
+
+// ─── Enhanced Webhook Functions ─────────────────────────
+async function testWebhook() {
+    const settingId = document.getElementById('webhook-setting-select').value;
+    if (!settingId) {
+        alert('Выберите настройку iiko');
+        return;
+    }
+    
+    const errorDiv = document.getElementById('webhook-error');
+    errorDiv.innerHTML = '<div style="padding:12px;background:rgba(99,102,241,0.1);border-radius:8px;"><span class="spinner" style="width:16px;height:16px;"></span> Тестирование вебхука...</div>';
+    
+    try {
+        const result = await apiPost('/admin/api/webhooks/test', { setting_id: parseInt(settingId) });
+        
+        if (result.status >= 400) {
+            errorDiv.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+        } else {
+            const data = result.data;
+            if (data.status === 'success') {
+                errorDiv.innerHTML = `<div class="alert alert-success">✅ Вебхук работает! Статус ответа: ${data.response_status}</div>`;
+            } else {
+                errorDiv.innerHTML = `<div class="alert alert-danger">❌ Ошибка: ${escapeHtml(data.error || 'Unknown error')}</div>`;
+            }
+        }
+    } catch (err) {
+        errorDiv.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+    }
+}
+
+async function getWebhookSettings() {
+    const settingId = document.getElementById('webhook-setting-select').value;
+    if (!settingId) {
+        alert('Выберите настройку iiko');
+        return;
+    }
+    
+    const container = document.getElementById('iiko-webhook-settings');
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Загрузка настроек из iiko...</div>';
+    
+    try {
+        const result = await apiGet(`/admin/api/webhooks/settings?setting_id=${settingId}`);
+        
+        if (result.status >= 400) {
+            container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(result.data.detail || JSON.stringify(result.data)) + '</div>';
+        } else {
+            const data = result.data;
+            let html = '<div class="data-section">';
+            html += `<div style="margin-bottom:8px;"><strong>URL:</strong> ${data.webHooksUri ? escapeHtml(data.webHooksUri) : 'Не настроен'}</div>`;
+            html += `<div style="margin-bottom:8px;"><strong>Статус:</strong> <span class="badge ${data.webHooksUri ? 'badge-success' : 'badge-muted'}">${data.webHooksUri ? 'Настроен' : 'Не настроен'}</span></div>`;
+            if (data.webHooksFilter) {
+                html += '<div style="margin-top:12px;"><strong>Фильтры событий:</strong></div>';
+                html += '<pre style="font-size:11px;max-height:300px;overflow:auto;margin-top:8px;">' + escapeHtml(JSON.stringify(data.webHooksFilter, null, 2)) + '</pre>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    } catch (err) {
+        container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(err.message) + '</div>';
+    }
 }
 
 function toggleApiKeyVisibility() {
