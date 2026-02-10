@@ -576,6 +576,21 @@
                 sidebar.classList.remove('open');
             }
         });
+
+        // ─── Global Session Expiration Handler ─────────────────────────────
+        // This function checks API responses for session expiration and redirects to login
+        window.handleSessionExpiration = function(responseData, responseStatus) {
+            // Check if this is a 401 error with session_expired flag
+            if (responseStatus === 401 && responseData && responseData.session_expired === true) {
+                // Show alert to user
+                alert('Ваша сессия истекла. Пожалуйста, войдите снова.\n\nYour session has expired. Please log in again.');
+                
+                // Redirect to login page
+                window.location.href = '{{ route("login") }}';
+                return true;
+            }
+            return false;
+        };
     </script>
     @yield('scripts')
 </body>

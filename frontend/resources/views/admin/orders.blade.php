@@ -135,7 +135,14 @@ function switchOrderTab(name, evt) {
 
 async function apiGet(url) {
     const res = await fetch(url, { headers: { 'X-CSRF-TOKEN': csrfToken } });
-    return res.json();
+    const data = await res.json();
+    
+    // Check for session expiration
+    if (window.handleSessionExpiration && window.handleSessionExpiration(data, res.status)) {
+        throw new Error('Session expired, redirecting to login...');
+    }
+    
+    return data;
 }
 
 async function apiPost(url, body = {}) {
@@ -144,7 +151,14 @@ async function apiPost(url, body = {}) {
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(body),
     });
-    return { status: res.status, data: await res.json() };
+    const data = await res.json();
+    
+    // Check for session expiration
+    if (window.handleSessionExpiration && window.handleSessionExpiration(data, res.status)) {
+        throw new Error('Session expired, redirecting to login...');
+    }
+    
+    return { status: res.status, data: data };
 }
 
 function escapeHtml(str) {
