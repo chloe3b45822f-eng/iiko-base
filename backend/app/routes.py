@@ -945,6 +945,16 @@ async def get_loyalty_balance(
         raise HTTPException(status_code=502, detail=f"Ошибка получения баланса: {str(e)}")
 
 
+def _save_bonus_transaction(db: Session, data: LoyaltyBalanceOperation, operation_type: str, username: str):
+    tx = BonusTransaction(
+        organization_id=data.organization_id, customer_id=data.customer_id,
+        wallet_id=data.wallet_id, operation_type=operation_type, amount=data.amount,
+        comment=data.comment or "", performed_by=username,
+    )
+    db.add(tx)
+    db.commit()
+
+
 @api_router.post("/iiko/loyalty/topup", tags=["loyalty"])
 async def topup_loyalty(
     data: LoyaltyBalanceOperation,
@@ -962,13 +972,7 @@ async def topup_loyalty(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
-        tx = BonusTransaction(
-            organization_id=data.organization_id, customer_id=data.customer_id,
-            wallet_id=data.wallet_id, operation_type="topup", amount=data.amount,
-            comment=data.comment or "", performed_by=_current_user.username,
-        )
-        db.add(tx)
-        db.commit()
+        _save_bonus_transaction(db, data, "topup", _current_user.username)
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка пополнения баланса: {str(e)}")
@@ -991,13 +995,7 @@ async def withdraw_loyalty(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
-        tx = BonusTransaction(
-            organization_id=data.organization_id, customer_id=data.customer_id,
-            wallet_id=data.wallet_id, operation_type="withdraw", amount=data.amount,
-            comment=data.comment or "", performed_by=_current_user.username,
-        )
-        db.add(tx)
-        db.commit()
+        _save_bonus_transaction(db, data, "withdraw", _current_user.username)
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка списания бонусов: {str(e)}")
@@ -1020,13 +1018,7 @@ async def hold_loyalty(
             data.organization_id, data.customer_id,
             data.wallet_id, data.amount, data.comment or "",
         )
-        tx = BonusTransaction(
-            organization_id=data.organization_id, customer_id=data.customer_id,
-            wallet_id=data.wallet_id, operation_type="hold", amount=data.amount,
-            comment=data.comment or "", performed_by=_current_user.username,
-        )
-        db.add(tx)
-        db.commit()
+        _save_bonus_transaction(db, data, "hold", _current_user.username)
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка холдирования бонусов: {str(e)}")
