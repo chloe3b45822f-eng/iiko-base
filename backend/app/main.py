@@ -112,7 +112,7 @@ async def register_webhook_on_startup():
             service = IikoService(db, iiko_settings)
             
             # Формируем URL вебхука
-            webhook_url = f"{settings.WEBHOOK_BASE_URL.rstrip('/')}/api/v1/webhook/iiko"
+            webhook_url = f"{settings.WEBHOOK_BASE_URL.rstrip('/')}/api/v1/webhooks/iiko"
             
             # Регистрируем вебхук
             result = await service.register_webhook(
