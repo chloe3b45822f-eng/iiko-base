@@ -1588,7 +1588,7 @@ async function loadIikoDeliveries() {
         let html = '<div class="data-section">';
 
         if (ordersByOrg.length === 0) {
-            html += '<span class="badge badge-muted">Нет заказов за последние 7 дней</span>';
+            html += '<span class="badge badge-muted">Нет заказов за последний день</span>';
         } else {
             ordersByOrg.forEach(orgOrders => {
                 const orders = orgOrders.orders || [];

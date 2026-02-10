@@ -519,13 +519,13 @@ class IikoService:
             json_data={"organizationIds": organization_ids, "orderIds": order_ids},
         )
 
-    async def get_deliveries_by_statuses(self, organization_id: str, statuses: list) -> dict:
-        """Получить заказы по статусам"""
+    async def get_deliveries_by_statuses(self, organization_id: str, statuses: list, days: int = 1) -> dict:
+        """Получить заказы по статусам (по умолчанию за последний день)"""
         if not self._token:
             await self.authenticate()
         from datetime import datetime, timedelta
         now = datetime.utcnow()
-        date_from = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S.000")
+        date_from = (now - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S.000")
         date_to = now.strftime("%Y-%m-%d %H:%M:%S.000")
         return await self._request(
             "POST",
