@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS iiko_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add organization_name column if it doesn't exist (for existing databases)
+ALTER TABLE iiko_settings ADD COLUMN IF NOT EXISTS organization_name VARCHAR(255);
+
 DROP TRIGGER IF EXISTS update_iiko_settings_updated_at ON iiko_settings;
 CREATE TRIGGER update_iiko_settings_updated_at BEFORE UPDATE ON iiko_settings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
