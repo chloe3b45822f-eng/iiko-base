@@ -1131,7 +1131,7 @@ async function loadWebhookEvents() {
                     const p = JSON.parse(e.payload);
                     const keys = Object.keys(p).slice(0, 3).join(', ');
                     payloadPreview = keys + (Object.keys(p).length > 3 ? '...' : '');
-                } catch(_) {
+                } catch(parseErr) {
                     payloadPreview = escapeHtml(String(e.payload).substring(0, 50)) + '...';
                 }
             }
@@ -1436,7 +1436,7 @@ async function loadIikoDeliveries() {
                             '<td><span class="badge ' + badge + '">' + escapeHtml(o.status || '—') + '</span></td>' +
                             '<td>' + escapeHtml(customer.name || '—') + '</td>' +
                             '<td>' + escapeHtml(customer.phone || '—') + '</td>' +
-                            '<td style="font-weight:600;">' + (o.sum != null ? o.sum.toFixed(2) : '—') + '</td>' +
+                            '<td style="font-weight:600;">' + (typeof o.sum === 'number' ? o.sum.toFixed(2) : (o.sum != null ? String(o.sum) : '—')) + '</td>' +
                             '<td style="font-size:12px;color:var(--muted);">' + escapeHtml(o.whenCreated || '—') + '</td>' +
                             '</tr>';
                     });
