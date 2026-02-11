@@ -864,9 +864,9 @@ async def get_webhook_events(
         query = query.filter(WebhookEvent.event_type == event_type)
     if processed is not None and processed != '':
         if processed.lower() in ('true', '1'):
-            query = query.filter(WebhookEvent.processed == True)
+            query = query.filter(WebhookEvent.processed.is_(True))
         elif processed.lower() in ('false', '0'):
-            query = query.filter(WebhookEvent.processed == False)
+            query = query.filter(WebhookEvent.processed.is_(False))
     if search:
         search_pattern = f"%{search}%"
         query = query.filter(
