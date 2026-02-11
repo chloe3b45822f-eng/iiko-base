@@ -269,6 +269,7 @@
 <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('orders', event)">📦 Заказы</button>
     <button class="tab-btn" onclick="switchTab('webhooks', event)">🔗 История Вебхуков</button>
+    <button class="tab-btn" onclick="switchTab('outgoing', event)">📤 Исходящие Вебхуки</button>
     <button class="tab-btn" onclick="switchTab('couriers', event)">🚗 Курьеры</button>
     <button class="tab-btn" onclick="switchTab('bonuses', event)">🎁 Бонусы</button>
 </div>
@@ -360,6 +361,50 @@
         
         <div id="webhook-events-list">
             <div class="loading-overlay"><span class="spinner"></span> Загрузка событий...</div>
+        </div>
+    </div>
+</div>
+
+{{-- ═══ TAB: Outgoing Webhooks ═══ --}}
+<div class="tab-content" id="tab-outgoing">
+    <div class="card section-gap">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Исходящие Вебхуки</div>
+                <div class="card-subtitle">Отправка данных на внешние сервисы (Senler, VK, и др.)</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openOutgoingWebhookModal()">➕ Добавить Вебхук</button>
+        </div>
+        
+        <div id="outgoing-webhooks-list">
+            <div class="loading-overlay"><span class="spinner"></span> Загрузка вебхуков...</div>
+        </div>
+    </div>
+
+    {{-- Webhook Logs --}}
+    <div class="card section-gap">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Логи Отправок</div>
+                <div class="card-subtitle">История отправки вебхуков на внешние сервисы</div>
+            </div>
+            <button class="btn btn-sm" onclick="loadOutgoingWebhookLogs()">🔄 Обновить</button>
+        </div>
+        
+        <div class="filter-bar">
+            <select class="form-input" id="outgoing-webhook-filter" style="max-width:200px;" onchange="loadOutgoingWebhookLogs()">
+                <option value="">Все вебхуки</option>
+            </select>
+            
+            <select class="form-input" id="outgoing-log-status-filter" style="max-width:150px;" onchange="loadOutgoingWebhookLogs()">
+                <option value="">Все</option>
+                <option value="true">Успешно</option>
+                <option value="false">Ошибки</option>
+            </select>
+        </div>
+        
+        <div id="outgoing-webhook-logs-list">
+            <div class="loading-overlay"><span class="spinner"></span> Загрузка логов...</div>
         </div>
     </div>
 </div>
@@ -477,6 +522,104 @@
         <div id="webhook-details-content"></div>
     </div>
 </div>
+
+<div id="outgoing-webhook-modal" class="modal">
+    <div class="modal-content" style="max-width:700px;">
+        <div class="modal-header">
+            <div class="modal-title" id="outgoing-webhook-modal-title">Добавить Исходящий Вебхук</div>
+            <button class="modal-close" onclick="closeModal('outgoing-webhook-modal')">×</button>
+        </div>
+        <div class="courier-assign-form">
+            <input type="hidden" id="outgoing-webhook-id">
+            
+            <div class="form-group">
+                <label class="form-label">Название *</label>
+                <input type="text" class="form-input" id="outgoing-webhook-name" placeholder="Senler VK Integration" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Описание</label>
+                <textarea class="form-input" id="outgoing-webhook-description" placeholder="Интеграция с Senler для отправки заказов в VK" rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">URL Вебхука *</label>
+                <input type="url" class="form-input" id="outgoing-webhook-url" placeholder="https://senler.ru/api/webhook" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Формат Данных</label>
+                <select class="form-input" id="outgoing-webhook-format">
+                    <option value="iiko_soi">iiko SOI API (как от iiko)</option>
+                    <option value="iiko_cloud">iiko Cloud API</option>
+                    <option value="custom">Пользовательский</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Тип Авторизации</label>
+                <select class="form-input" id="outgoing-webhook-auth-type" onchange="toggleAuthFields()">
+                    <option value="none">Без авторизации</option>
+                    <option value="bearer">Bearer Token</option>
+                    <option value="basic">Basic Auth</option>
+                    <option value="custom">Пользовательские заголовки</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="auth-token-group" style="display:none;">
+                <label class="form-label">Token</label>
+                <input type="text" class="form-input" id="outgoing-webhook-auth-token" placeholder="ваш_bearer_token">
+            </div>
+            
+            <div class="form-group" id="auth-basic-group" style="display:none;">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-input" id="outgoing-webhook-auth-username" placeholder="username">
+                <label class="form-label" style="margin-top:8px;">Password</label>
+                <input type="password" class="form-input" id="outgoing-webhook-auth-password" placeholder="password">
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="outgoing-webhook-on-created" checked>
+                        При создании заказа
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="outgoing-webhook-on-updated" checked>
+                        При обновлении заказа
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="outgoing-webhook-on-status-changed" checked>
+                        При смене статуса
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="outgoing-webhook-on-cancelled">
+                        При отмене заказа
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="outgoing-webhook-is-active" checked>
+                    Активен
+                </label>
+            </div>
+            
+            <div style="display:flex;gap:8px;margin-top:16px;">
+                <button class="btn btn-primary" onclick="saveOutgoingWebhook()">✅ Сохранить</button>
+                <button class="btn" onclick="testOutgoingWebhook()" id="test-webhook-btn" style="display:none;">🧪 Тестировать</button>
+                <button class="btn" onclick="closeModal('outgoing-webhook-modal')">Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -493,6 +636,7 @@ function switchTab(name, evt) {
     // Auto-load data
     if (name === 'orders') loadEnhancedOrders();
     if (name === 'webhooks') loadWebhookEvents();
+    if (name === 'outgoing') { loadOutgoingWebhooks(); loadOutgoingWebhookLogs(); }
     if (name === 'couriers') loadCourierStats();
     if (name === 'bonuses') loadBonusTransactions();
 }
@@ -505,9 +649,9 @@ async function apiGet(url) {
     return res.json();
 }
 
-async function apiPost(url, body = {}) {
+async function apiPost(url, body = {}, method = 'POST') {
     const res = await fetch(url, {
-        method: 'POST',
+        method: method,
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': csrfToken,
@@ -1013,6 +1157,305 @@ async function loadBonusTransactions() {
     } catch (err) {
         container.innerHTML = `<div class="alert alert-danger">⚠️ Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
     }
+}
+
+// ─── Outgoing Webhooks ──────────────────────────────────────
+async function loadOutgoingWebhooks() {
+    const container = document.getElementById('outgoing-webhooks-list');
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Загрузка...</div>';
+    
+    try {
+        const webhooks = await apiGet('/admin/api/outgoing-webhooks');
+        
+        if (!Array.isArray(webhooks) || webhooks.length === 0) {
+            container.innerHTML = '<span class="badge badge-muted">Исходящие вебхуки не настроены</span>';
+            return;
+        }
+        
+        // Populate filter dropdown
+        const filterSelect = document.getElementById('outgoing-webhook-filter');
+        filterSelect.innerHTML = '<option value="">Все вебхуки</option>';
+        webhooks.forEach(w => {
+            filterSelect.innerHTML += `<option value="${w.id}">${escapeHtml(w.name)}</option>`;
+        });
+        
+        let html = '';
+        webhooks.forEach(webhook => {
+            const successRate = webhook.total_sent > 0 
+                ? ((webhook.total_success / webhook.total_sent) * 100).toFixed(1)
+                : 0;
+            const statusClass = webhook.is_active ? 'webhook-processed' : 'webhook-pending';
+            const statusText = webhook.is_active ? '✅ Активен' : '⏸ Неактивен';
+            
+            html += `
+                <div class="webhook-card">
+                    <div class="webhook-header">
+                        <div class="webhook-type">📤 ${escapeHtml(webhook.name)}</div>
+                        <span class="webhook-status ${statusClass}">${statusText}</span>
+                    </div>
+                    ${webhook.description ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${escapeHtml(webhook.description)}</div>` : ''}
+                    <div class="webhook-details">
+                        <div>
+                            <div class="webhook-detail-label">URL</div>
+                            <div class="webhook-detail-value">${escapeHtml(webhook.webhook_url).substring(0, 40)}...</div>
+                        </div>
+                        <div>
+                            <div class="webhook-detail-label">Формат</div>
+                            <div class="webhook-detail-value">${webhook.payload_format}</div>
+                        </div>
+                        <div>
+                            <div class="webhook-detail-label">Отправлено</div>
+                            <div class="webhook-detail-value">${webhook.total_sent} (${successRate}% успех)</div>
+                        </div>
+                        ${webhook.last_sent_at ? `
+                        <div>
+                            <div class="webhook-detail-label">Последняя отправка</div>
+                            <div class="webhook-detail-value">${formatDate(webhook.last_sent_at)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button class="order-action-btn" onclick="editOutgoingWebhook(${webhook.id})" title="Редактировать">✏️</button>
+                        <button class="order-action-btn" onclick="testOutgoingWebhookById(${webhook.id})" title="Тестировать">🧪</button>
+                        <button class="order-action-btn" onclick="toggleOutgoingWebhook(${webhook.id}, ${!webhook.is_active})" title="${webhook.is_active ? 'Деактивировать' : 'Активировать'}">${webhook.is_active ? '⏸' : '▶️'}</button>
+                        <button class="order-action-btn" onclick="deleteOutgoingWebhook(${webhook.id})" title="Удалить">🗑️</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = `<div class="alert alert-danger">⚠️ Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function loadOutgoingWebhookLogs() {
+    const container = document.getElementById('outgoing-webhook-logs-list');
+    const webhookFilter = document.getElementById('outgoing-webhook-filter').value;
+    const statusFilter = document.getElementById('outgoing-log-status-filter').value;
+    
+    container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Загрузка...</div>';
+    
+    try {
+        let url = '/admin/api/outgoing-webhook-logs?limit=50';
+        if (webhookFilter) url += '&webhook_id=' + webhookFilter;
+        if (statusFilter) url += '&success=' + statusFilter;
+        
+        const logs = await apiGet(url);
+        
+        if (!Array.isArray(logs) || logs.length === 0) {
+            container.innerHTML = '<span class="badge badge-muted">Логов не найдено</span>';
+            return;
+        }
+        
+        let html = '';
+        logs.forEach(log => {
+            const statusClass = log.success ? 'webhook-processed' : 'webhook-failed';
+            const statusText = log.success ? `✅ ${log.response_status}` : `❌ Ошибка`;
+            
+            html += `
+                <div class="webhook-card">
+                    <div class="webhook-header">
+                        <div class="webhook-type">${escapeHtml(log.webhook_name || 'Webhook')}</div>
+                        <span class="webhook-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="webhook-details">
+                        ${log.order_external_id ? `
+                        <div>
+                            <div class="webhook-detail-label">Заказ</div>
+                            <div class="webhook-detail-value">${escapeHtml(log.order_external_id)}</div>
+                        </div>
+                        ` : ''}
+                        <div>
+                            <div class="webhook-detail-label">Событие</div>
+                            <div class="webhook-detail-value">${escapeHtml(log.event_type || '—')}</div>
+                        </div>
+                        <div>
+                            <div class="webhook-detail-label">Попытка</div>
+                            <div class="webhook-detail-value">#${log.attempt_number}</div>
+                        </div>
+                        <div>
+                            <div class="webhook-detail-label">Время</div>
+                            <div class="webhook-detail-value">${log.duration_ms}ms</div>
+                        </div>
+                        <div>
+                            <div class="webhook-detail-label">Дата</div>
+                            <div class="webhook-detail-value">${formatDate(log.created_at)}</div>
+                        </div>
+                        ${log.error_message ? `
+                        <div>
+                            <div class="webhook-detail-label">Ошибка</div>
+                            <div class="webhook-detail-value" style="color:var(--danger);">${escapeHtml(log.error_message).substring(0, 100)}...</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = `<div class="alert alert-danger">⚠️ Ошибка загрузки: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function openOutgoingWebhookModal(webhookId = null) {
+    document.getElementById('outgoing-webhook-modal-title').textContent = webhookId ? 'Редактировать Вебхук' : 'Добавить Исходящий Вебхук';
+    document.getElementById('outgoing-webhook-id').value = webhookId || '';
+    
+    if (!webhookId) {
+        // Clear form for new webhook
+        document.getElementById('outgoing-webhook-name').value = '';
+        document.getElementById('outgoing-webhook-description').value = '';
+        document.getElementById('outgoing-webhook-url').value = '';
+        document.getElementById('outgoing-webhook-format').value = 'iiko_soi';
+        document.getElementById('outgoing-webhook-auth-type').value = 'none';
+        document.getElementById('outgoing-webhook-auth-token').value = '';
+        document.getElementById('outgoing-webhook-auth-username').value = '';
+        document.getElementById('outgoing-webhook-auth-password').value = '';
+        document.getElementById('outgoing-webhook-on-created').checked = true;
+        document.getElementById('outgoing-webhook-on-updated').checked = true;
+        document.getElementById('outgoing-webhook-on-status-changed').checked = true;
+        document.getElementById('outgoing-webhook-on-cancelled').checked = false;
+        document.getElementById('outgoing-webhook-is-active').checked = true;
+        document.getElementById('test-webhook-btn').style.display = 'none';
+    } else {
+        document.getElementById('test-webhook-btn').style.display = 'inline-block';
+    }
+    
+    toggleAuthFields();
+    openModal('outgoing-webhook-modal');
+}
+
+async function editOutgoingWebhook(webhookId) {
+    try {
+        const webhook = await apiGet(`/admin/api/outgoing-webhooks/${webhookId}`);
+        
+        document.getElementById('outgoing-webhook-id').value = webhook.id;
+        document.getElementById('outgoing-webhook-name').value = webhook.name;
+        document.getElementById('outgoing-webhook-description').value = webhook.description || '';
+        document.getElementById('outgoing-webhook-url').value = webhook.webhook_url;
+        document.getElementById('outgoing-webhook-format').value = webhook.payload_format;
+        document.getElementById('outgoing-webhook-auth-type').value = webhook.auth_type;
+        document.getElementById('outgoing-webhook-auth-token').value = webhook.auth_token || '';
+        document.getElementById('outgoing-webhook-auth-username').value = webhook.auth_username || '';
+        document.getElementById('outgoing-webhook-on-created').checked = webhook.send_on_order_created;
+        document.getElementById('outgoing-webhook-on-updated').checked = webhook.send_on_order_updated;
+        document.getElementById('outgoing-webhook-on-status-changed').checked = webhook.send_on_order_status_changed;
+        document.getElementById('outgoing-webhook-on-cancelled').checked = webhook.send_on_order_cancelled;
+        document.getElementById('outgoing-webhook-is-active').checked = webhook.is_active;
+        
+        openOutgoingWebhookModal(webhook.id);
+    } catch (err) {
+        alert('Ошибка загрузки вебхука: ' + err.message);
+    }
+}
+
+async function saveOutgoingWebhook() {
+    const webhookId = document.getElementById('outgoing-webhook-id').value;
+    const data = {
+        name: document.getElementById('outgoing-webhook-name').value,
+        description: document.getElementById('outgoing-webhook-description').value,
+        webhook_url: document.getElementById('outgoing-webhook-url').value,
+        payload_format: document.getElementById('outgoing-webhook-format').value,
+        auth_type: document.getElementById('outgoing-webhook-auth-type').value,
+        auth_token: document.getElementById('outgoing-webhook-auth-token').value,
+        auth_username: document.getElementById('outgoing-webhook-auth-username').value,
+        auth_password: document.getElementById('outgoing-webhook-auth-password').value,
+        send_on_order_created: document.getElementById('outgoing-webhook-on-created').checked,
+        send_on_order_updated: document.getElementById('outgoing-webhook-on-updated').checked,
+        send_on_order_status_changed: document.getElementById('outgoing-webhook-on-status-changed').checked,
+        send_on_order_cancelled: document.getElementById('outgoing-webhook-on-cancelled').checked,
+        is_active: document.getElementById('outgoing-webhook-is-active').checked,
+    };
+    
+    if (!data.name || !data.webhook_url) {
+        alert('Заполните обязательные поля');
+        return;
+    }
+    
+    try {
+        let result;
+        if (webhookId) {
+            result = await apiPost(`/admin/api/outgoing-webhooks/${webhookId}`, data, 'PUT');
+        } else {
+            result = await apiPost('/admin/api/outgoing-webhooks', data);
+        }
+        
+        if (result.status === 200) {
+            alert('✅ Вебхук успешно сохранен!');
+            closeModal('outgoing-webhook-modal');
+            loadOutgoingWebhooks();
+        } else {
+            alert('❌ Ошибка: ' + JSON.stringify(result.data));
+        }
+    } catch (err) {
+        alert('❌ Ошибка: ' + err.message);
+    }
+}
+
+async function testOutgoingWebhook() {
+    const webhookId = document.getElementById('outgoing-webhook-id').value;
+    if (!webhookId) {
+        alert('Сначала сохраните вебхук');
+        return;
+    }
+    
+    await testOutgoingWebhookById(webhookId);
+}
+
+async function testOutgoingWebhookById(webhookId) {
+    try {
+        const result = await apiPost(`/admin/api/outgoing-webhooks/${webhookId}/test`, {});
+        
+        if (result.status === 200 && result.data.success) {
+            alert(`✅ Тест успешен!\nСтатус: ${result.data.status_code}\nВремя: ${result.data.duration_ms}ms`);
+        } else {
+            alert(`❌ Тест не пройден\nОшибка: ${result.data.error || 'Unknown error'}`);
+        }
+    } catch (err) {
+        alert('❌ Ошибка тестирования: ' + err.message);
+    }
+}
+
+async function toggleOutgoingWebhook(webhookId, newActiveState) {
+    try {
+        const result = await apiPost(`/admin/api/outgoing-webhooks/${webhookId}`, {
+            is_active: newActiveState
+        }, 'PUT');
+        
+        if (result.status === 200) {
+            loadOutgoingWebhooks();
+        } else {
+            alert('Ошибка изменения статуса');
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+async function deleteOutgoingWebhook(webhookId) {
+    if (!confirm('Вы уверены, что хотите удалить этот вебхук?')) return;
+    
+    try {
+        const result = await apiPost(`/admin/api/outgoing-webhooks/${webhookId}`, {}, 'DELETE');
+        
+        if (result.status === 200) {
+            alert('✅ Вебхук удален');
+            loadOutgoingWebhooks();
+        } else {
+            alert('Ошибка удаления');
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+function toggleAuthFields() {
+    const authType = document.getElementById('outgoing-webhook-auth-type').value;
+    document.getElementById('auth-token-group').style.display = authType === 'bearer' ? 'block' : 'none';
+    document.getElementById('auth-basic-group').style.display = authType === 'basic' ? 'block' : 'none';
 }
 
 // Auto-load on page load

@@ -767,4 +767,185 @@ class AdminController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    // ─── Outgoing Webhooks API Methods ────────────────────────────────────
+
+    public function apiOutgoingWebhooks(Request $request): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->get("{$this->apiBase}/outgoing-webhooks");
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to fetch webhooks'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhooks fetch failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiOutgoingWebhookDetails(Request $request, int $id): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->get("{$this->apiBase}/outgoing-webhooks/{$id}");
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to fetch webhook details'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook details fetch failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiCreateOutgoingWebhook(Request $request): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->post("{$this->apiBase}/outgoing-webhooks", $request->all());
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to create webhook'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook creation failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiUpdateOutgoingWebhook(Request $request, int $id): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->put("{$this->apiBase}/outgoing-webhooks/{$id}", $request->all());
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to update webhook'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook update failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiDeleteOutgoingWebhook(Request $request, int $id): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->delete("{$this->apiBase}/outgoing-webhooks/{$id}");
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to delete webhook'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook deletion failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiTestOutgoingWebhook(Request $request, int $id): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(60)
+                ->post("{$this->apiBase}/outgoing-webhooks/{$id}/test", []);
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to test webhook'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook test failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function apiOutgoingWebhookLogs(Request $request): JsonResponse
+    {
+        $token = $request->session()->get('token');
+        if (!$token) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $queryParams = $request->only(['limit', 'success', 'webhook_id', 'order_id']);
+            $queryString = http_build_query($queryParams);
+            
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->get("{$this->apiBase}/outgoing-webhook-logs?" . $queryString);
+            
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+            
+            return response()->json([
+                'error' => $response->json('detail') ?? 'Failed to fetch webhook logs'
+            ], $response->status());
+        } catch (\Throwable $e) {
+            Log::error('Outgoing webhook logs fetch failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }
+

@@ -95,5 +95,14 @@ Route::middleware('admin.session')->group(function () {
     Route::get('/admin/api/data/products', [AdminController::class, 'apiDataProducts'])->name('admin.api.data.products');
     Route::get('/admin/api/data/stop-lists', [AdminController::class, 'apiDataStopLists'])->name('admin.api.data.stop_lists');
 
+    // Outgoing Webhooks API proxy routes
+    Route::get('/admin/api/outgoing-webhooks', [AdminController::class, 'apiOutgoingWebhooks'])->name('admin.api.outgoing_webhooks');
+    Route::get('/admin/api/outgoing-webhooks/{id}', [AdminController::class, 'apiOutgoingWebhookDetails'])->name('admin.api.outgoing_webhook_details');
+    Route::post('/admin/api/outgoing-webhooks', [AdminController::class, 'apiCreateOutgoingWebhook'])->name('admin.api.outgoing_webhook_create');
+    Route::put('/admin/api/outgoing-webhooks/{id}', [AdminController::class, 'apiUpdateOutgoingWebhook'])->name('admin.api.outgoing_webhook_update');
+    Route::delete('/admin/api/outgoing-webhooks/{id}', [AdminController::class, 'apiDeleteOutgoingWebhook'])->name('admin.api.outgoing_webhook_delete');
+    Route::post('/admin/api/outgoing-webhooks/{id}/test', [AdminController::class, 'apiTestOutgoingWebhook'])->name('admin.api.outgoing_webhook_test');
+    Route::get('/admin/api/outgoing-webhook-logs', [AdminController::class, 'apiOutgoingWebhookLogs'])->name('admin.api.outgoing_webhook_logs');
+
     Route::post('/logout', [AdminController::class, 'logout'])->name('logout');
 });
