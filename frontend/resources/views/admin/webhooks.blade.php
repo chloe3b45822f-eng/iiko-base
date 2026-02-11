@@ -1775,7 +1775,7 @@ async function loadSetupSettings() {
         }
         
         setupSettingsList.forEach(s => {
-            const orgLabel = s.organization_id ? ` (${s.organization_name || s.organization_id.substring(0, 8) + '...'})` : ' (нет орг.)';
+            const orgLabel = s.organization_id ? ` (${s.organization_name || s.organization_id.substring(0, Math.min(8, s.organization_id.length)) + '...'})` : ' (нет орг.)';
             const selected = s.id === setupCurrentSettingId ? 'selected' : '';
             select.innerHTML += `<option value="${s.id}" ${selected}>${escapeHtml(s.name || 'API #' + s.id)}${orgLabel}</option>`;
         });
@@ -1816,8 +1816,6 @@ function onSetupSettingChange() {
     
     // Update generated URL preview
     const domain = window.location.hostname;
-    const protocol = window.location.protocol;
-    const port = window.location.port && window.location.port !== '443' && window.location.port !== '80' ? ':' + window.location.port : '';
     const generatedUrl = `https://${domain}/api/v1/webhooks/iiko`;
     document.getElementById('setup-webhook-url').textContent = setting.webhook_url || generatedUrl;
     document.getElementById('setup-auth-token').textContent = setting.webhook_secret ? '••••••••••••••••' : '(будет сгенерирован)';
@@ -1907,7 +1905,7 @@ async function autoSetupWebhook() {
             const data = result.data;
             msgEl.innerHTML = '<div class="alert alert-success">✅ Вебхук успешно зарегистрирован в iiko Cloud!</div>';
             document.getElementById('setup-webhook-url').textContent = data.webhook_url || '—';
-            document.getElementById('setup-auth-token').textContent = data.auth_token ? '••••••••' + data.auth_token.substring(data.auth_token.length - 6) : '—';
+            document.getElementById('setup-auth-token').textContent = data.auth_token && data.auth_token.length >= 6 ? '••••••••' + data.auth_token.substring(data.auth_token.length - 6) : '••••••••';
             
             // Reload settings to reflect changes
             await loadSetupSettings();
