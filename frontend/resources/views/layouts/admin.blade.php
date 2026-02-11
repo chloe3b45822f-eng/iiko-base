@@ -532,6 +532,9 @@
             <a href="{{ route('admin.orders') }}" class="sidebar-link @if(request()->routeIs('admin.orders')) active @endif">
                 <span class="icon">🛒</span> Заказы
             </a>
+            <a href="{{ route('admin.webhooks') }}" class="sidebar-link @if(request()->routeIs('admin.webhooks')) active @endif">
+                <span class="icon">🔗</span> Вебхуки & Заказы
+            </a>
             <a href="{{ route('admin.users') }}" class="sidebar-link @if(request()->routeIs('admin.users')) active @endif">
                 <span class="icon">👥</span> Пользователи
             </a>
