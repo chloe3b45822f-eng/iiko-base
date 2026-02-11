@@ -53,6 +53,7 @@ class IikoSettingsResponse(BaseModel):
     organization_name: Optional[str] = None
     api_url: str
     webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     is_active: bool
     last_token_refresh: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -102,8 +103,11 @@ class PasswordChange(BaseModel):
 class WebhookEventResponse(BaseModel):
     id: int
     event_type: str
+    order_external_id: Optional[str] = None
+    organization_id: Optional[str] = None
     payload: Optional[str] = None
     processed: bool
+    processing_error: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
