@@ -194,6 +194,21 @@
 
 {{-- ═══ TAB: Webhooks ═══ --}}
 <div class="tab-content" id="tab-webhooks">
+    {{-- Link to comprehensive webhooks page --}}
+    <div class="card section-gap" style="background:linear-gradient(135deg, rgba(99,102,241,0.15), rgba(34,211,238,0.15));border-color:var(--accent);">
+        <div style="padding:20px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;color:var(--text-bright);margin-bottom:8px;">
+                🔗 Новая страница управления вебхуками
+            </div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:16px;">
+                Полное управление вебхуками, заказами, курьерами и бонусами с расширенными возможностями
+            </div>
+            <a href="{{ route('admin.webhooks') }}" class="btn btn-primary" style="font-size:14px;padding:12px 24px;">
+                🚀 Открыть страницу "Вебхуки & Заказы"
+            </a>
+        </div>
+    </div>
+
     <div class="grid-2 section-gap">
         {{-- Webhook Configuration --}}
         <div class="card">
