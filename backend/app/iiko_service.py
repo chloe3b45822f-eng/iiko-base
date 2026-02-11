@@ -183,11 +183,13 @@ class IikoService:
                 self.db.commit()
             return self._token
 
-    async def get_organizations(self) -> dict:
-        """Получить список организаций"""
+    async def get_organizations(self, return_additional_info: bool = True) -> dict:
+        """Получить список организаций. returnAdditionalInfo возвращает расширенную информацию."""
         if not self._token:
             await self.authenticate()
-        return await self._request("POST", "/organizations", json_data={})
+        return await self._request("POST", "/organizations", json_data={
+            "returnAdditionalInfo": return_additional_info,
+        })
 
     async def get_menu(self, organization_id: str) -> dict:
         """Получить меню организации"""
@@ -276,47 +278,59 @@ class IikoService:
             json_data={"organizationIds": organization_ids},
         )
 
-    async def register_webhook(self, organization_id: str, webhook_url: str, auth_token: str) -> dict:
-        """Зарегистрировать вебхук в iiko"""
+    async def register_webhook(self, organization_id: str, webhook_url: str, auth_token: str = None) -> dict:
+        """Зарегистрировать вебхук в iiko.
+        Согласно документации iiko Cloud API, используется эндпоинт /webhooks/update_settings.
+        Включает все доступные фильтры: deliveryOrderFilter, tableOrderFilter, reserveFilter,
+        stopListUpdateFilter, personalShiftFilter, nomenclatureUpdateFilter, businessHoursAndMappingUpdateFilter.
+        """
         if not self._token:
             await self.authenticate()
+        payload = {
+            "organizationId": organization_id,
+            "webHooksUri": webhook_url,
+            "webHooksFilter": {
+                "deliveryOrderFilter": {
+                    "orderStatuses": [
+                        "Unconfirmed", "WaitCooking", "ReadyForCooking",
+                        "CookingStarted", "CookingCompleted", "Waiting",
+                        "OnWay", "Delivered", "Closed", "Cancelled"
+                    ],
+                    "itemStatuses": [
+                        "Added", "PrintedNotCooking", "CookingStarted",
+                        "CookingCompleted", "Served"
+                    ],
+                    "errors": True,
+                },
+                "tableOrderFilter": {
+                    "orderStatuses": ["New"],
+                    "itemStatuses": ["Added"],
+                    "errors": True,
+                },
+                "reserveFilter": {
+                    "updates": True,
+                    "errors": True,
+                },
+                "stopListUpdateFilter": {
+                    "updates": True,
+                },
+                "personalShiftFilter": {
+                    "updates": True,
+                },
+                "nomenclatureUpdateFilter": {
+                    "updates": True,
+                },
+                "businessHoursAndMappingUpdateFilter": {
+                    "updates": True,
+                },
+            },
+        }
+        if auth_token:
+            payload["authToken"] = auth_token
         return await self._request(
             "POST",
             "/webhooks/update_settings",
-            json_data={
-                "organizationId": organization_id,
-                "webHooksUri": webhook_url,
-                "authToken": auth_token,
-                "webHooksFilter": {
-                    "deliveryOrderFilter": {
-                        "orderStatuses": [
-                            "Unconfirmed", "WaitCooking", "ReadyForCooking",
-                            "CookingStarted", "CookingCompleted", "Waiting",
-                            "OnWay", "Delivered", "Closed", "Cancelled"
-                        ],
-                        "itemStatuses": [
-                            "Added", "PrintedNotCooking", "CookingStarted",
-                            "CookingCompleted", "Served"
-                        ],
-                        "errors": True,
-                    },
-                    "tableOrderFilter": {
-                        "orderStatuses": ["New"],
-                        "itemStatuses": ["Added"],
-                        "errors": True,
-                    },
-                    "reserveFilter": {
-                        "updates": True,
-                        "errors": True,
-                    },
-                    "stopListUpdateFilter": {
-                        "updates": True,
-                    },
-                    "personalShiftFilter": {
-                        "updates": True,
-                    },
-                },
-            },
+            json_data=payload,
         )
 
     async def get_webhook_settings(self, organization_id: str) -> dict:
@@ -330,10 +344,28 @@ class IikoService:
         )
 
     # ─── Order Management (двусторонняя интеграция) ─────────────────────────
-    async def update_order_status(self, organization_id: str, order_id: str, status: str) -> dict:
+    async def update_order_delivery_status(self, organization_id: str, order_id: str, delivery_status: str) -> dict:
         """
-        Обновить статус заказа в iiko.
-        Используется для отправки изменений статуса из админки обратно в iiko.
+        Обновить статус доставки заказа в iiko.
+        Согласно документации iiko Cloud API, допустимые статусы: Waiting, OnWay, Delivered.
+        Использует эндпоинт /deliveries/update_order_delivery_status.
+        """
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/update_order_delivery_status",
+            json_data={
+                "organizationId": organization_id,
+                "orderId": order_id,
+                "deliveryStatus": delivery_status,
+            },
+        )
+
+    async def update_order_problem(self, organization_id: str, order_id: str, has_problem: bool, problem: str = None) -> dict:
+        """
+        Обновить проблему заказа в iiko.
+        Согласно документации iiko Cloud API, обязательные поля: organizationId, orderId, hasProblem, problem.
         """
         if not self._token:
             await self.authenticate()
@@ -343,15 +375,16 @@ class IikoService:
             json_data={
                 "organizationId": organization_id,
                 "orderId": order_id,
-                "problem": None if status == "Delivered" else "",
-                "problemComment": f"Status updated to {status}",
+                "hasProblem": has_problem,
+                "problem": problem,
             },
         )
 
-    async def assign_courier(self, organization_id: str, order_id: str, courier_id: str) -> dict:
+    async def assign_courier(self, organization_id: str, order_id: str, employee_id: str) -> dict:
         """
         Назначить курьера на заказ в iiko.
         Используется для синхронизации назначения курьера.
+        Согласно документации iiko Cloud API, поле называется employeeId.
         """
         if not self._token:
             await self.authenticate()
@@ -361,20 +394,20 @@ class IikoService:
             json_data={
                 "organizationId": organization_id,
                 "orderId": order_id,
-                "courierId": courier_id,
+                "employeeId": employee_id,
             },
         )
 
     async def update_order_items(self, organization_id: str, order_id: str, items: list) -> dict:
         """
-        Обновить состав заказа (позиции) в iiko.
-        Используется для изменения блюд, модификаторов в заказе.
+        Добавить позиции в заказ в iiko.
+        Согласно документации iiko Cloud API, эндпоинт /deliveries/add_items.
         """
         if not self._token:
             await self.authenticate()
         return await self._request(
             "POST",
-            "/deliveries/update_order_items",
+            "/deliveries/add_items",
             json_data={
                 "organizationId": organization_id,
                 "orderId": order_id,
@@ -390,18 +423,18 @@ class IikoService:
     ) -> dict:
         """
         Изменить способ оплаты заказа в iiko.
+        Согласно документации iiko Cloud API, эндпоинт /deliveries/change_payments.
         
         Args:
             organization_id: ID организации
             order_id: ID заказа в iiko
-            payments: Список платежей, например:
-                [{"paymentTypeKind": "Card", "sum": 1200.0}]
+            payments: Список платежей
         """
         if not self._token:
             await self.authenticate()
         return await self._request(
             "POST",
-            "/deliveries/update_order_payments",
+            "/deliveries/change_payments",
             json_data={
                 "organizationId": organization_id,
                 "orderId": order_id,
@@ -445,25 +478,34 @@ class IikoService:
             json_data=discount_data,
         )
 
-    async def cancel_order(self, organization_id: str, order_id: str, cancel_reason: str = "") -> dict:
+    async def cancel_order(self, organization_id: str, order_id: str, cancel_comment: str = "",
+                          cancel_cause_id: str = None) -> dict:
         """
         Отменить заказ в iiko.
+        Согласно документации iiko Cloud API:
+        - cancelComment: комментарий к отмене
+        - cancelCauseId: ID причины отмены из справочника (опционально)
         
         Args:
             organization_id: ID организации
             order_id: ID заказа в iiko
-            cancel_reason: Причина отмены
+            cancel_comment: Комментарий к отмене
+            cancel_cause_id: ID причины отмены из справочника cancel_causes
         """
         if not self._token:
             await self.authenticate()
+        payload = {
+            "organizationId": organization_id,
+            "orderId": order_id,
+        }
+        if cancel_comment:
+            payload["cancelComment"] = cancel_comment
+        if cancel_cause_id:
+            payload["cancelCauseId"] = cancel_cause_id
         return await self._request(
             "POST",
             "/deliveries/cancel",
-            json_data={
-                "organizationId": organization_id,
-                "orderId": order_id,
-                "cancelCause": cancel_reason or "Cancelled from admin panel",
-            },
+            json_data=payload,
         )
 
     # ─── Loyalty / iikoCard ─────────────────────────────────────────────────
@@ -586,7 +628,7 @@ class IikoService:
             await self.authenticate()
         return await self._request(
             "POST",
-            "/loyalty/iiko/customer/wallet/withdraw",
+            "/loyalty/iiko/customer/wallet/chargeoff",
             json_data={
                 "organizationId": organization_id,
                 "customerId": customer_id,
@@ -602,7 +644,7 @@ class IikoService:
             await self.authenticate()
         return await self._request(
             "POST",
-            "/deliveries/cancel_causes",
+            "/cancel_causes",
             json_data={"organizationIds": organization_ids},
         )
 
@@ -673,4 +715,230 @@ class IikoService:
                 "deliveryDateTo": date_to,
                 "statuses": statuses,
             },
+        )
+
+    # ─── Additional iiko Cloud API Methods ──────────────────────────────────
+
+    async def get_cities(self, organization_ids: list) -> dict:
+        """Получить список городов для организаций"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/cities",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_regions(self, organization_ids: list) -> dict:
+        """Получить список регионов"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/regions",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_marketing_sources(self, organization_ids: list) -> dict:
+        """Получить маркетинговые источники"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/marketing_sources",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_employee_info(self, organization_id: str, employee_id: str) -> dict:
+        """Получить информацию о сотруднике"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/employees/info",
+            json_data={"organizationId": organization_id, "id": employee_id},
+        )
+
+    async def get_couriers_active_location(self, organization_ids: list) -> dict:
+        """Получить текущие GPS координаты активных курьеров"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/employees/couriers/active_location",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_terminal_groups_is_alive(self, organization_ids: list, terminal_group_ids: list) -> dict:
+        """Проверить доступность терминальных групп"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/terminal_groups/is_alive",
+            json_data={
+                "organizationIds": organization_ids,
+                "terminalGroupIds": terminal_group_ids,
+            },
+        )
+
+    async def get_organization_settings(self, organization_ids: list) -> dict:
+        """Получить настройки организаций"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/organizations/settings",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def check_delivery_restrictions(self, organization_ids: list, delivery_address: dict = None,
+                                          order_items: list = None, is_courier_delivery: bool = True) -> dict:
+        """Проверить ограничения доставки по адресу"""
+        if not self._token:
+            await self.authenticate()
+        payload = {
+            "organizationIds": organization_ids,
+            "isCourierDelivery": is_courier_delivery,
+        }
+        if delivery_address:
+            payload["deliveryAddress"] = delivery_address
+        if order_items:
+            payload["orderItems"] = order_items
+        return await self._request(
+            "POST",
+            "/delivery_restrictions/allowed",
+            json_data=payload,
+        )
+
+    async def send_notification(self, organization_id: str, order_id: str,
+                                order_source: str, additional_info: str = None,
+                                message_type: int = 0) -> dict:
+        """Отправить уведомление (нотификацию) через iiko"""
+        if not self._token:
+            await self.authenticate()
+        payload = {
+            "organizationId": organization_id,
+            "orderId": order_id,
+            "orderSource": order_source,
+            "messageType": message_type,
+        }
+        if additional_info:
+            payload["additionalInfo"] = additional_info
+        return await self._request(
+            "POST",
+            "/notifications/send",
+            json_data=payload,
+        )
+
+    async def get_menu_v2(self, organization_id: str, start_revision: int = None) -> dict:
+        """Получить меню версии 2 (расширенная номенклатура)"""
+        if not self._token:
+            await self.authenticate()
+        payload = {"organizationId": organization_id}
+        if start_revision is not None:
+            payload["startRevision"] = start_revision
+        return await self._request(
+            "POST",
+            "/api/2/menu",  # Note: v2 menu endpoint
+            json_data=payload,
+        )
+
+    async def get_command_status(self, organization_id: str, correlation_id: str) -> dict:
+        """Получить статус выполнения команды по correlationId"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/commands/status",
+            json_data={
+                "organizationId": organization_id,
+                "correlationId": correlation_id,
+            },
+        )
+
+    async def get_combo(self, organization_ids: list) -> dict:
+        """Получить комбо-предложения"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/combo",
+            json_data={"organizationIds": organization_ids},
+        )
+
+    async def get_customer_categories(self, organization_id: str) -> dict:
+        """Получить категории гостей"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/loyalty/iiko/customer_category",
+            json_data={"organizationId": organization_id},
+        )
+
+    async def get_loyalty_coupons_series(self, organization_id: str) -> dict:
+        """Получить серии купонов программы лояльности"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/loyalty/iiko/coupons/series",
+            json_data={"organizationId": organization_id},
+        )
+
+    async def change_delivery_comment(self, organization_id: str, order_id: str, comment: str) -> dict:
+        """Изменить комментарий к заказу доставки"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/change_comment",
+            json_data={
+                "organizationId": organization_id,
+                "orderId": order_id,
+                "comment": comment,
+            },
+        )
+
+    async def confirm_delivery(self, organization_id: str, order_id: str) -> dict:
+        """Подтвердить заказ доставки"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/confirm",
+            json_data={
+                "organizationId": organization_id,
+                "orderId": order_id,
+            },
+        )
+
+    async def print_delivery_bill(self, organization_id: str, order_id: str) -> dict:
+        """Распечатать чек доставки"""
+        if not self._token:
+            await self.authenticate()
+        return await self._request(
+            "POST",
+            "/deliveries/print_delivery_bill",
+            json_data={
+                "organizationId": organization_id,
+                "orderId": order_id,
+            },
+        )
+
+    async def close_delivery(self, organization_id: str, order_id: str, delivery_date: str = None) -> dict:
+        """Закрыть заказ доставки"""
+        if not self._token:
+            await self.authenticate()
+        payload = {
+            "organizationId": organization_id,
+            "orderId": order_id,
+        }
+        if delivery_date:
+            payload["deliveryDate"] = delivery_date
+        return await self._request(
+            "POST",
+            "/deliveries/close",
+            json_data=payload,
         )
