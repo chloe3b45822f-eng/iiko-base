@@ -579,6 +579,118 @@
             </div>
         </div>
 
+        {{-- Cities --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">🏙️ Города</div>
+                    <div class="card-subtitle">Список городов организации</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('cities')">Загрузить</button>
+            </div>
+            <div id="data-cities">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Regions --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">🌍 Регионы</div>
+                    <div class="card-subtitle">Список регионов</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('regions')">Загрузить</button>
+            </div>
+            <div id="data-regions">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Marketing Sources --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">📣 Маркетинговые источники</div>
+                    <div class="card-subtitle">Источники маркетинговых кампаний</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('marketing-sources')">Загрузить</button>
+            </div>
+            <div id="data-marketing-sources">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Organization Settings --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">⚙️ Настройки организации</div>
+                    <div class="card-subtitle">Параметры организации из iiko</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('organization-settings')">Загрузить</button>
+            </div>
+            <div id="data-organization-settings">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Terminal Groups Status --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">🟢 Статус терминалов</div>
+                    <div class="card-subtitle">Проверка доступности терминальных групп</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('terminal-groups-alive')">Проверить</button>
+            </div>
+            <div id="data-terminal-groups-alive">
+                <span class="badge badge-muted">Нажмите «Проверить» для проверки доступности</span>
+            </div>
+        </div>
+
+        {{-- Couriers Location --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">📍 Локация курьеров</div>
+                    <div class="card-subtitle">GPS координаты активных курьеров</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('couriers-location')">Загрузить</button>
+            </div>
+            <div id="data-couriers-location">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Combo --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">🎯 Комбо-предложения</div>
+                    <div class="card-subtitle">Доступные комбо-наборы</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('combo')">Загрузить</button>
+            </div>
+            <div id="data-combo">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
+        {{-- Customer Categories --}}
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">👥 Категории гостей</div>
+                    <div class="card-subtitle">Категории клиентов программы лояльности</div>
+                </div>
+                <button class="btn btn-sm" onclick="loadDataSection('customer-categories')">Загрузить</button>
+            </div>
+            <div id="data-customer-categories">
+                <span class="badge badge-muted">Нажмите «Загрузить» для получения данных</span>
+            </div>
+        </div>
+
         {{-- iiko Deliveries --}}
         <div class="card">
             <div class="card-header">
@@ -1420,6 +1532,14 @@ async function loadDataSection(type) {
         'removal-types': '/admin/api/iiko-removal-types',
         'tips-types': '/admin/api/iiko-tips-types',
         'delivery-restrictions': '/admin/api/iiko-delivery-restrictions',
+        'cities': '/admin/api/iiko-cities',
+        'regions': '/admin/api/iiko-regions',
+        'marketing-sources': '/admin/api/iiko-marketing-sources',
+        'organization-settings': '/admin/api/iiko-organization-settings',
+        'terminal-groups-alive': '/admin/api/iiko-terminal-groups-alive',
+        'couriers-location': '/admin/api/iiko-couriers-location',
+        'combo': '/admin/api/iiko-combo',
+        'customer-categories': '/admin/api/iiko-customer-categories',
     };
 
     try {
@@ -1593,6 +1713,77 @@ async function loadDataSection(type) {
             }
         } else if (type === 'delivery-restrictions') {
             html += '<pre style="font-size:12px;max-height:400px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+        } else if (type === 'cities') {
+            const cities = data.cities || [];
+            if (Array.isArray(cities) && cities.length > 0) {
+                html += '<div class="table-wrap"><table><thead><tr><th>Город</th><th>ID</th></tr></thead><tbody>';
+                cities.forEach(c => {
+                    html += '<tr><td><strong>🏙️ ' + escapeHtml(c.name || '—') + '</strong></td>' +
+                        '<td class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(c.id || '') + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<pre style="font-size:12px;max-height:300px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            }
+        } else if (type === 'regions') {
+            const regions = data.regions || [];
+            if (Array.isArray(regions) && regions.length > 0) {
+                html += '<div class="table-wrap"><table><thead><tr><th>Регион</th><th>ID</th></tr></thead><tbody>';
+                regions.forEach(r => {
+                    html += '<tr><td><strong>🌍 ' + escapeHtml(r.name || '—') + '</strong></td>' +
+                        '<td class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(r.id || '') + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<pre style="font-size:12px;max-height:300px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            }
+        } else if (type === 'marketing-sources') {
+            const sources = data.marketingSources || [];
+            if (Array.isArray(sources) && sources.length > 0) {
+                html += '<div class="table-wrap"><table><thead><tr><th>Название</th><th>ID</th></tr></thead><tbody>';
+                sources.forEach(s => {
+                    html += '<tr><td><strong>📣 ' + escapeHtml(s.name || '—') + '</strong></td>' +
+                        '<td class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(s.id || '') + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<pre style="font-size:12px;max-height:300px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            }
+        } else if (type === 'organization-settings') {
+            html += '<pre style="font-size:12px;max-height:400px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+        } else if (type === 'terminal-groups-alive') {
+            const alive = data.isAliveState || [];
+            if (Array.isArray(alive) && alive.length > 0) {
+                html += '<div class="table-wrap"><table><thead><tr><th>Терминал</th><th>Статус</th></tr></thead><tbody>';
+                alive.forEach(a => {
+                    const items = a.items || [];
+                    items.forEach(item => {
+                        const statusBadge = item.isAlive ? '<span class="badge badge-success">🟢 Доступен</span>' : '<span class="badge badge-danger">🔴 Недоступен</span>';
+                        html += '<tr><td class="mono" style="font-size:12px;">' + escapeHtml(item.terminalGroupId || '—') + '</td>' +
+                            '<td>' + statusBadge + '</td></tr>';
+                    });
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<pre style="font-size:12px;max-height:300px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            }
+        } else if (type === 'couriers-location') {
+            html += '<pre style="font-size:12px;max-height:400px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+        } else if (type === 'combo') {
+            html += '<pre style="font-size:12px;max-height:400px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+        } else if (type === 'customer-categories') {
+            const cats = data.guestCategories || data.customerCategories || [];
+            if (Array.isArray(cats) && cats.length > 0) {
+                html += '<div class="table-wrap"><table><thead><tr><th>Категория</th><th>Активна</th><th>ID</th></tr></thead><tbody>';
+                cats.forEach(c => {
+                    html += '<tr><td><strong>👥 ' + escapeHtml(c.name || '—') + '</strong></td>' +
+                        '<td>' + (c.isActive !== false ? '✅' : '❌') + '</td>' +
+                        '<td class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(c.id || '') + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            } else {
+                html += '<pre style="font-size:12px;max-height:300px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
+            }
         } else {
             // Generic JSON display for other types
             html += '<pre style="font-size:12px;max-height:400px;overflow:auto;">' + escapeHtml(JSON.stringify(data, null, 2)) + '</pre>';
