@@ -1758,6 +1758,14 @@ async function loadSetupTab() {
 async function loadSetupSettings() {
     try {
         const settings = await apiGet('/admin/api/iiko-settings');
+        
+        if (settings?.error || settings?.detail) {
+            document.getElementById('setup-setting-info').innerHTML = 
+                '<div class="alert alert-danger">❌ ' + escapeHtml(settings.error || settings.detail) + '</div>';
+            setupSettingsList = [];
+            return;
+        }
+        
         setupSettingsList = Array.isArray(settings) ? settings : (Array.isArray(settings?.data) ? settings.data : []);
         
         const select = document.getElementById('setup-setting-select');
@@ -1988,6 +1996,11 @@ async function loadIikoWebhookSettings() {
     try {
         const result = await apiGet(`/admin/api/webhooks/settings?setting_id=${setupCurrentSettingId}`);
         const data = result.data || result;
+        
+        if (data.error || data.detail) {
+            container.innerHTML = '<div class="alert alert-danger">❌ ' + escapeHtml(data.error || data.detail) + '</div>';
+            return;
+        }
         
         let html = '';
         if (data.webHooksUri) {
