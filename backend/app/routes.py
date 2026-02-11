@@ -51,6 +51,9 @@ DEFAULT_DELIVERY_STATUSES_STR = ",".join(DEFAULT_DELIVERY_STATUSES)
 # Statuses excluded during retry to reduce data volume
 HEAVY_DELIVERY_STATUSES = {"Closed", "Cancelled", "Delivered"}
 
+# Delivery statuses that can be updated via /deliveries/update_order_delivery_status (per iiko API docs)
+DELIVERY_STATUS_UPDATE_ALLOWED = {"Waiting", "OnWay", "Delivered"}
+
 # ─── Auth ────────────────────────────────────────────────────────────────
 @api_router.post("/auth/register", tags=["auth"], response_model=UserResponse)
 async def register(user_in: UserCreate, db: Session = Depends(get_db)):
@@ -887,8 +890,9 @@ async def update_order_status_in_iiko(
 ):
     """
     Обновить статус заказа в iiko.
-    Статусы: Unconfirmed, WaitCooking, ReadyForCooking, CookingStarted,
-    CookingCompleted, Waiting, OnWay, Delivered, Closed, Cancelled
+    Согласно документации iiko Cloud API, допустимые статусы для update_order_delivery_status:
+    Waiting, OnWay, Delivered.
+    Для остальных статусов используется update_order_problem.
     """
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
@@ -909,11 +913,19 @@ async def update_order_status_in_iiko(
     service = IikoService(db, iiko_setting)
     
     try:
-        result = await service.update_order_status(
-            order.organization_id,
-            order.iiko_order_id,
-            status
-        )
+        if status in DELIVERY_STATUS_UPDATE_ALLOWED:
+            result = await service.update_order_delivery_status(
+                order.organization_id,
+                order.iiko_order_id,
+                status
+            )
+        else:
+            result = await service.update_order_problem(
+                order.organization_id,
+                order.iiko_order_id,
+                has_problem=True,
+                problem=f"Status changed to {status}"
+            )
         
         # Обновляем локальный статус
         old_status = order.status
@@ -1382,6 +1394,177 @@ async def get_iiko_delivery_restrictions(
         raise HTTPException(status_code=404, detail="Настройка не найдена")
     svc = IikoService(db, rec)
     return await svc.get_delivery_restrictions([organization_id])
+
+
+@api_router.post("/iiko/cities", tags=["iiko"])
+async def get_iiko_cities(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить список городов"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_cities([organization_id])
+
+
+@api_router.post("/iiko/regions", tags=["iiko"])
+async def get_iiko_regions(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить список регионов"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_regions([organization_id])
+
+
+@api_router.post("/iiko/marketing-sources", tags=["iiko"])
+async def get_iiko_marketing_sources(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить маркетинговые источники"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_marketing_sources([organization_id])
+
+
+@api_router.post("/iiko/organization-settings", tags=["iiko"])
+async def get_iiko_organization_settings(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить настройки организации из iiko"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_organization_settings([organization_id])
+
+
+@api_router.post("/iiko/terminal-groups-alive", tags=["iiko"])
+async def get_iiko_terminal_groups_alive(
+    setting_id: int,
+    organization_id: str,
+    terminal_group_ids: str = "",
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Проверить доступность терминальных групп"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    tg_ids = [t.strip() for t in terminal_group_ids.split(",") if t.strip()]
+    return await svc.get_terminal_groups_is_alive([organization_id], tg_ids)
+
+
+@api_router.post("/iiko/couriers-location", tags=["iiko"])
+async def get_iiko_couriers_location(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить текущие GPS координаты активных курьеров"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_couriers_active_location([organization_id])
+
+
+@api_router.post("/iiko/combo", tags=["iiko"])
+async def get_iiko_combo(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить комбо-предложения"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_combo([organization_id])
+
+
+@api_router.post("/iiko/command-status", tags=["iiko"])
+async def get_iiko_command_status(
+    setting_id: int,
+    organization_id: str,
+    correlation_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить статус выполнения команды по correlationId"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_command_status(organization_id, correlation_id)
+
+
+@api_router.post("/iiko/customer-categories", tags=["iiko"])
+async def get_iiko_customer_categories(
+    setting_id: int,
+    organization_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Получить категории гостей"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.get_customer_categories(organization_id)
+
+
+@api_router.post("/iiko/confirm-delivery", tags=["iiko"])
+async def confirm_iiko_delivery(
+    setting_id: int,
+    organization_id: str,
+    order_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Подтвердить заказ доставки"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.confirm_delivery(organization_id, order_id)
+
+
+@api_router.post("/iiko/change-delivery-comment", tags=["iiko"])
+async def change_iiko_delivery_comment(
+    setting_id: int,
+    organization_id: str,
+    order_id: str,
+    comment: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_role("operator")),
+):
+    """Изменить комментарий к заказу доставки"""
+    rec = db.query(IikoSettings).filter(IikoSettings.id == setting_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Настройка не найдена")
+    svc = IikoService(db, rec)
+    return await svc.change_delivery_comment(organization_id, order_id, comment)
 
 
 @api_router.post("/iiko/webhook-settings", tags=["iiko"])

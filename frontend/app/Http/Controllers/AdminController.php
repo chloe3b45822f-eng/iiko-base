@@ -269,6 +269,88 @@ class AdminController extends Controller
         return $this->proxyPost($request, "/iiko/delivery-restrictions?setting_id={$settingId}&organization_id={$orgId}");
     }
 
+    public function apiCities(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/cities?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiRegions(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/regions?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiMarketingSources(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/marketing-sources?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiOrganizationSettings(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/organization-settings?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiTerminalGroupsAlive(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        $tgIds = $request->input('terminal_group_ids', '');
+        return $this->proxyPost($request, "/iiko/terminal-groups-alive?setting_id={$settingId}&organization_id={$orgId}&terminal_group_ids=" . urlencode($tgIds));
+    }
+
+    public function apiCouriersLocation(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/couriers-location?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiCombo(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/combo?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiCommandStatus(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        $correlationId = $request->input('correlation_id');
+        return $this->proxyPost($request, "/iiko/command-status?setting_id={$settingId}&organization_id={$orgId}&correlation_id=" . urlencode($correlationId));
+    }
+
+    public function apiCustomerCategories(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        return $this->proxyPost($request, "/iiko/customer-categories?setting_id={$settingId}&organization_id={$orgId}");
+    }
+
+    public function apiConfirmDelivery(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        $orderId = $request->input('order_id');
+        return $this->proxyPost($request, "/iiko/confirm-delivery?setting_id={$settingId}&organization_id={$orgId}&order_id=" . urlencode($orderId));
+    }
+
+    public function apiChangeDeliveryComment(Request $request): JsonResponse
+    {
+        $settingId = $request->input('setting_id');
+        $orgId = $request->input('organization_id');
+        $orderId = $request->input('order_id');
+        $comment = $request->input('comment', '');
+        return $this->proxyPost($request, "/iiko/change-delivery-comment?setting_id={$settingId}&organization_id={$orgId}&order_id=" . urlencode($orderId) . "&comment=" . urlencode($comment));
+    }
+
     public function apiRegisterWebhook(Request $request): JsonResponse
     {
         $settingId = $request->input('setting_id');

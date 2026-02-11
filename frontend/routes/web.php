@@ -44,6 +44,17 @@ Route::middleware('admin.session')->group(function () {
     Route::post('/admin/api/iiko-removal-types', [AdminController::class, 'apiRemovalTypes'])->name('admin.api.iiko_removal_types');
     Route::post('/admin/api/iiko-tips-types', [AdminController::class, 'apiTipsTypes'])->name('admin.api.iiko_tips_types');
     Route::post('/admin/api/iiko-delivery-restrictions', [AdminController::class, 'apiDeliveryRestrictions'])->name('admin.api.iiko_delivery_restrictions');
+    Route::post('/admin/api/iiko-cities', [AdminController::class, 'apiCities'])->name('admin.api.iiko_cities');
+    Route::post('/admin/api/iiko-regions', [AdminController::class, 'apiRegions'])->name('admin.api.iiko_regions');
+    Route::post('/admin/api/iiko-marketing-sources', [AdminController::class, 'apiMarketingSources'])->name('admin.api.iiko_marketing_sources');
+    Route::post('/admin/api/iiko-organization-settings', [AdminController::class, 'apiOrganizationSettings'])->name('admin.api.iiko_organization_settings');
+    Route::post('/admin/api/iiko-terminal-groups-alive', [AdminController::class, 'apiTerminalGroupsAlive'])->name('admin.api.iiko_terminal_groups_alive');
+    Route::post('/admin/api/iiko-couriers-location', [AdminController::class, 'apiCouriersLocation'])->name('admin.api.iiko_couriers_location');
+    Route::post('/admin/api/iiko-combo', [AdminController::class, 'apiCombo'])->name('admin.api.iiko_combo');
+    Route::post('/admin/api/iiko-command-status', [AdminController::class, 'apiCommandStatus'])->name('admin.api.iiko_command_status');
+    Route::post('/admin/api/iiko-customer-categories', [AdminController::class, 'apiCustomerCategories'])->name('admin.api.iiko_customer_categories');
+    Route::post('/admin/api/iiko-confirm-delivery', [AdminController::class, 'apiConfirmDelivery'])->name('admin.api.iiko_confirm_delivery');
+    Route::post('/admin/api/iiko-change-delivery-comment', [AdminController::class, 'apiChangeDeliveryComment'])->name('admin.api.iiko_change_delivery_comment');
     Route::post('/admin/api/iiko-register-webhook', [AdminController::class, 'apiRegisterWebhook'])->name('admin.api.iiko_register_webhook');
     Route::post('/admin/api/iiko-webhook-settings', [AdminController::class, 'apiWebhookSettings'])->name('admin.api.iiko_webhook_settings');
     Route::get('/admin/api/webhook-events', [AdminController::class, 'apiWebhookEvents'])->name('admin.api.webhook_events');
